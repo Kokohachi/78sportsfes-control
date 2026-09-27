@@ -430,7 +430,7 @@ async function initFirebaseSync() {
         firebaseSync.initialized = true;
         firebaseSync.online = true;
         updateSyncStatus("接続中", "sky");
-        const documentCandidates = [
+        const documentCandidates = SPORTS_PAGE_CONFIG.documentCandidates ?? [
             { collection: "app_data", doc: MAIN_DATA_DOC },
             { collection: "app_data", doc: "ball_sports_data_v4" },
             { collection: "sportsfes", doc: "main" },
