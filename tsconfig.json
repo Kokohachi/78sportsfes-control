@@ -10,10 +10,10 @@
     "allowJs": false
   },
   "include": [
-    "public/ball_sports_test2.ts"
+    "public/ballsports.ts"
   ],
   "exclude": [
-    "public/ball_sports_test2.js",
+    "public/ballsports.js",
     "public/dist/**",
     "node_modules"
   ]

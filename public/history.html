@@ -209,6 +209,10 @@
     };
 
     let historyData = [];
+    const historyPage = new URLSearchParams(window.location.search).get('page');
+    if (historyPage === 'ball' || historyPage === 'team') {
+      document.getElementById('filterPage').value = historyPage;
+    }
 
     function formatDate(iso) {
       const d = new Date(iso);

@@ -62,21 +62,21 @@
 </head>
 <body>
   <header>
-    <a href="./ball_sports_test2.html" aria-label="進行本部へ戻る"><i data-lucide="arrow-left"></i> 進行本部</a>
+    <a href="./ballsports.html" aria-label="進行本部へ戻る"><i data-lucide="arrow-left"></i> 進行本部</a>
     <h1>競技・試合管理</h1>
       <nav aria-label="管理ページ">
         <a href="./match-management.html" class="match-view-link">試合設定</a>
         <a href="./match-management.html#data-tools" class="data-view-link">データ管理</a>
       </nav>
   </header>
-  <iframe id="managementFrame" title="競技・試合の作成と時間設定" src="./ball_sports_test2.html#match-tools"></iframe>
+  <iframe id="managementFrame" title="競技・試合の作成と時間設定" src="./ballsports.html#match-tools"></iframe>
   <script>
     const managementFrame = document.getElementById("managementFrame");
     const updateManagementView = () => {
       const dataView = location.hash === "#data-tools";
       managementFrame.src = dataView
-        ? "./ball_sports_test2.html#data-tools"
-        : "./ball_sports_test2.html#match-tools";
+        ? "./ballsports.html#data-tools"
+        : "./ballsports.html#match-tools";
       document.querySelector(".match-view-link")?.classList.toggle("active", !dataView);
       document.querySelector(".data-view-link")?.classList.toggle("active", dataView);
     };

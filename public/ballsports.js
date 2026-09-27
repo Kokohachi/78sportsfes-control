@@ -1,4 +1,10 @@
 "use strict";
+const SPORTS_PAGE_CONFIG = window.SPORTS_PAGE_CONFIG ?? {};
+const MAIN_DATA_DOC = SPORTS_PAGE_CONFIG.dataDoc ?? "ball_sports_test2_main";
+const BACKUP_DATA_DOC = SPORTS_PAGE_CONFIG.backupDoc ?? "ball_sports_test2_backups";
+const SCHEDULE_STORAGE_KEY = SPORTS_PAGE_CONFIG.scheduleStorageKey ?? "gym78_ball_day_v1_schedule";
+const ANNOUNCEMENT_STORAGE_KEY = SPORTS_PAGE_CONFIG.announcementStorageKey ?? "gym78_ball_day_v1_announcement";
+const DEFAULT_COURT = SPORTS_PAGE_CONFIG.defaultCourt ?? "上グラ";
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyAwVUxoXbvTraGUDoLztqqcJx2fIHqUntc",
     authDomain: "thsportsfes.firebaseapp.com",
@@ -9,7 +15,7 @@ const FIREBASE_CONFIG = {
     appId: "1:96596815858:web:5f85526bf785ccc5d8056b",
     measurementId: "G-TCPMRTY3P1"
 };
-const INITIAL_SCHEDULE = [
+const DEFAULT_INITIAL_SCHEDULE = [
     { id: "m1", blockId: "initial_c1_soccer", blockTitle: "第1試合", court: "上グラ", sport: "サッカー", grade: "中1", title: "第一試合", format: "league", teamA: "A", teamB: "B", scoreA: null, scoreB: null, start: "08:20", end: "08:30", referee: "相山", staff: "進行", status: "BEFORE", offsetMins: 0, pointRule: [150, 100, 50, 0] },
     { id: "m1_2", blockId: "initial_c1_soccer", blockTitle: "第1試合", court: "上グラ", sport: "サッカー", grade: "中1", title: "第二試合", format: "league", teamA: "A", teamB: "C", scoreA: null, scoreB: null, start: "08:35", end: "08:45", referee: "相山", staff: "進行", status: "BEFORE", offsetMins: 0, pointRule: [150, 100, 50, 0] },
     { id: "m1_3", blockId: "initial_c1_soccer", blockTitle: "第1試合", court: "上グラ", sport: "サッカー", grade: "中1", title: "第三試合", format: "league", teamA: "A", teamB: "D", scoreA: null, scoreB: null, start: "08:50", end: "09:00", referee: "相山", staff: "進行", status: "BEFORE", offsetMins: 0, pointRule: [150, 100, 50, 0] },
@@ -40,6 +46,7 @@ const INITIAL_SCHEDULE = [
     { id: "m23", court: "卓球場", sport: "卓球", grade: "高2", title: "第3試合", format: "league", teamA: "A", teamB: "C", scoreA: null, scoreB: null, start: "10:30", end: "11:25", referee: "鈴木", staff: "進行", status: "BEFORE", offsetMins: 0 },
     { id: "m24", court: "卓球場", sport: "卓球", grade: "中2", title: "第4試合", format: "league", teamA: "B", teamB: "D", scoreA: null, scoreB: null, start: "12:00", end: "12:55", referee: "鈴木", staff: "進行", status: "BEFORE", offsetMins: 0 }
 ];
+const INITIAL_SCHEDULE = Array.isArray(SPORTS_PAGE_CONFIG.initialSchedule) ? SPORTS_PAGE_CONFIG.initialSchedule : DEFAULT_INITIAL_SCHEDULE;
 const LEAGUE_PAIRS = [["A", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "D"]];
 const TOURNAMENT_PAIRS = [["準決勝1", "A", "B"], ["準決勝2", "C", "D"], ["3位決定戦", "準決勝1の敗者", "準決勝2の敗者"], ["決勝", "準決勝1の勝者", "準決勝2の勝者"]];
 function getFormatMatchDefinitions(format) {
@@ -181,7 +188,7 @@ function cloneInitialSchedule() {
 const INITIAL_MATCH_IDS = new Set(INITIAL_SCHEDULE.map((match) => match.id));
 function loadPersistedSchedule() {
     try {
-        const raw = localStorage.getItem("gym78_ball_day_v1_schedule");
+        const raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
         if (!raw)
             return cloneInitialSchedule();
         const parsed = JSON.parse(raw);
@@ -203,7 +210,7 @@ function loadPersistedSchedule() {
 }
 function loadPersistedAnnouncement() {
     try {
-        const raw = localStorage.getItem("gym78_ball_day_v1_announcement");
+        const raw = localStorage.getItem(ANNOUNCEMENT_STORAGE_KEY);
         return typeof raw === "string" ? raw : "";
     }
     catch {
@@ -376,8 +383,8 @@ function applyRemoteDocumentData(data) {
     }
     appState.schedule = nextSchedule;
     appState.announcement = nextAnnouncement;
-    localStorage.setItem("gym78_ball_day_v1_schedule", JSON.stringify(appState.schedule));
-    localStorage.setItem("gym78_ball_day_v1_announcement", appState.announcement);
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(appState.schedule));
+    localStorage.setItem(ANNOUNCEMENT_STORAGE_KEY, appState.announcement);
     updateSyncStatus("同期済み", "success");
     renderCourtDelaySummary();
     renderTimeline();
@@ -401,7 +408,7 @@ function subscribeToRemoteData() {
             // ignore
         }
     }
-    const primaryDoc = firebaseSync.db.collection("app_data").doc("ball_sports_test2_main");
+    const primaryDoc = firebaseSync.db.collection("app_data").doc(MAIN_DATA_DOC);
     firebaseSync.unsubscribe = primaryDoc.onSnapshot((docSnap) => {
         if (!docSnap.exists)
             return;
@@ -424,7 +431,7 @@ async function initFirebaseSync() {
         firebaseSync.online = true;
         updateSyncStatus("接続中", "sky");
         const documentCandidates = [
-            { collection: "app_data", doc: "ball_sports_test2_main" },
+            { collection: "app_data", doc: MAIN_DATA_DOC },
             { collection: "app_data", doc: "ball_sports_data_v4" },
             { collection: "sportsfes", doc: "main" },
             { collection: "app_data", doc: "sportsfes_main" },
@@ -450,7 +457,7 @@ async function initFirebaseSync() {
             await syncStateToFirebase();
         }
         else {
-            const primarySnapshot = await firebaseSync.db.collection("app_data").doc("ball_sports_test2_main").get();
+            const primarySnapshot = await firebaseSync.db.collection("app_data").doc(MAIN_DATA_DOC).get();
             if (!primarySnapshot.exists)
                 await syncStateToFirebase();
         }
@@ -472,7 +479,7 @@ async function syncStateToFirebase() {
     }
     firebaseWriteInFlight = true;
     try {
-        const mainDoc = firebaseSync.db.collection("app_data").doc("ball_sports_test2_main");
+        const mainDoc = firebaseSync.db.collection("app_data").doc(MAIN_DATA_DOC);
         do {
             firebaseWritePending = false;
             const payload = {
@@ -567,10 +574,24 @@ function startClock() {
     requestAnimationFrame(update);
 }
 function saveState() {
-    localStorage.setItem("gym78_ball_day_v1_schedule", JSON.stringify(appState.schedule));
-    localStorage.setItem("gym78_ball_day_v1_announcement", appState.announcement);
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(appState.schedule));
+    localStorage.setItem(ANNOUNCEMENT_STORAGE_KEY, appState.announcement);
     if (firebaseSync.initialized) {
         syncStateToFirebase().catch((err) => console.warn("[自動同期スキップ]", err));
+    }
+}
+function recordSportsHistory(entry) {
+    const item = {
+        ...entry,
+        page: SPORTS_PAGE_CONFIG.historyPage ?? "ball",
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+    };
+    const history = JSON.parse(localStorage.getItem("input_history_v4") || "[]");
+    history.unshift(item);
+    localStorage.setItem("input_history_v4", JSON.stringify(history.slice(0, 500)));
+    if (firebaseSync.db && firebaseSync.initialized) {
+        firebaseSync.db.collection("input_history").add(item).catch((error) => console.warn("[履歴保存失敗]", error));
     }
 }
 function calcAdjustedTime(timeStr, offsetMins) {
@@ -622,7 +643,7 @@ function getSelectedGanttCourts() {
         .map((checkbox) => checkbox.value);
 }
 function renderCourtDelaySummary() {
-    const courts = ["上グラ", "下グラ", "体育館", "ハード", "オムニ", "卓球場"];
+    const courts = SPORTS_PAGE_CONFIG.courts ?? ["上グラ", "下グラ", "体育館", "ハード", "オムニ", "卓球場"];
     const summaryContainer = document.getElementById("courtDelaySummaryBar");
     const adminMonitor = document.getElementById("adminCourtDelayMonitor");
     let summaryHtml = "";
@@ -833,11 +854,13 @@ function quickSaveScore(matchId, newStatus) {
     const m = appState.schedule.find((item) => item.id === matchId);
     if (!m)
         return;
+    const before = { scoreA: m.scoreA, scoreB: m.scoreB, status: m.status };
     const valA = document.getElementById(`inputScoreA_${matchId}`)?.value ?? "";
     const valB = document.getElementById(`inputScoreB_${matchId}`)?.value ?? "";
     m.scoreA = valA !== "" ? parseInt(valA, 10) : null;
     m.scoreB = valB !== "" ? parseInt(valB, 10) : null;
     m.status = newStatus;
+    recordSportsHistory({ type: "result", eventId: m.id, eventName: `${m.grade} ${m.sport} ${m.title}`, grade: m.grade, venue: m.court, before, after: { scoreA: m.scoreA, scoreB: m.scoreB, status: m.status } });
     updateTournamentBracket(m.blockId);
     updateExhibitionTeams(m.sport);
     saveState();
@@ -1474,7 +1497,7 @@ function createNewMatch() {
     const grade = document.getElementById("addGrade")?.value ?? "中1";
     const sport = document.getElementById("addSport")?.value.trim() ?? "";
     const format = document.getElementById("addFormat")?.value ?? "tournament";
-    const court = document.getElementById("addCourt")?.value ?? "上グラ";
+    const court = document.getElementById("addCourt")?.value ?? DEFAULT_COURT;
     const title = document.getElementById("addTitle")?.value.trim() ?? "";
     const teamA = document.getElementById("addTeamA")?.value.trim() || "A組";
     const teamB = document.getElementById("addTeamB")?.value.trim() || "B組";
@@ -1630,6 +1653,7 @@ function saveModalData() {
     const m = appState.schedule.find((item) => item.id === matchId);
     if (!m)
         return;
+    const before = { scoreA: m.scoreA, scoreB: m.scoreB, status: m.status, offsetMins: m.offsetMins };
     const newOffset = parseInt(document.getElementById("inputDelayMinutes").value, 10) || 0;
     const diff = newOffset - m.offsetMins;
     m.status = appState.selectedModalStatus;
@@ -1643,6 +1667,7 @@ function saveModalData() {
     m.competitionLead = document.getElementById("inputCompetitionLead").value;
     m.staff = m.competitionLead;
     m.attendance = document.getElementById("inputAttendance").value;
+    recordSportsHistory({ type: "result", eventId: m.id, eventName: `${m.grade} ${m.sport} ${m.title}`, grade: m.grade, venue: m.court, before, after: { scoreA: m.scoreA, scoreB: m.scoreB, status: m.status, offsetMins: m.offsetMins } });
     if (diff !== 0) {
         applyCascadeOffset(m.id, diff);
     }
@@ -1719,7 +1744,7 @@ function dismissAnnouncement() {
 function getBackupCollection() {
     if (!firebaseSync.db || !firebaseSync.initialized)
         return null;
-    return firebaseSync.db.collection("app_data").doc("ball_sports_test2_backups").collection("snapshots");
+    return firebaseSync.db.collection("app_data").doc(BACKUP_DATA_DOC).collection("snapshots");
 }
 async function createBackup() {
     const status = document.getElementById("dataBackupStatus");
