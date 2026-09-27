@@ -178,6 +178,7 @@ function normalizeCompetitionSchedule(sourceSchedule) {
 function cloneInitialSchedule() {
     return INITIAL_SCHEDULE.map((match) => ({ ...match }));
 }
+const INITIAL_MATCH_IDS = new Set(INITIAL_SCHEDULE.map((match) => match.id));
 function loadPersistedSchedule() {
     try {
         const raw = localStorage.getItem("gym78_ball_day_v1_schedule");
@@ -1238,6 +1239,8 @@ function calculateScoresAndRanks() {
 function getCompetitionBlocks() {
     const blocks = new Map();
     appState.schedule.forEach((match) => {
+        if (INITIAL_MATCH_IDS.has(match.id))
+            return;
         const grade = normalizeGradeLabel(match.grade);
         const sport = String(match.sport ?? "").trim() || "球技";
         const groupKey = `${grade} | ${sport}`;
