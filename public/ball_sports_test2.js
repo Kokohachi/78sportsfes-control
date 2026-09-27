@@ -1364,6 +1364,8 @@ function deleteSelectedCompetition() {
     }
     const beforeCount = appState.schedule.length;
     appState.schedule = appState.schedule.filter((match) => {
+        if (sport === "ALL")
+            return false;
         const sportMatch = sport === "ALL" || match.sport === sport;
         const gradeMatch = grade === "ALL" || match.grade === grade;
         const courtMatch = court === "ALL" || match.court === court;
