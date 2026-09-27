@@ -72,11 +72,20 @@
   <iframe id="managementFrame" title="競技・試合の作成と時間設定" src="./ballsports.html#match-tools"></iframe>
   <script>
     const managementFrame = document.getElementById("managementFrame");
+    const teamEventMode = new URLSearchParams(location.search).get("event") === "team";
+    const managementPage = teamEventMode ? "./teamspors.html" : "./ballsports.html";
+    if (teamEventMode) {
+      managementFrame.title = "団体競技日の進行・設定";
+      document.querySelector("header > a")?.setAttribute("href", "./teamspors.html");
+      document.querySelector("h1").textContent = "団体競技日 試合管理";
+      document.querySelector(".match-view-link")?.setAttribute("href", "./match-management.html?event=team");
+      document.querySelector(".data-view-link")?.setAttribute("href", "./match-management.html?event=team#data-tools");
+    }
     const updateManagementView = () => {
       const dataView = location.hash === "#data-tools";
       managementFrame.src = dataView
-        ? "./ballsports.html#data-tools"
-        : "./ballsports.html#match-tools";
+        ? `${managementPage}#data-tools`
+        : `${managementPage}#match-tools`;
       document.querySelector(".match-view-link")?.classList.toggle("active", !dataView);
       document.querySelector(".data-view-link")?.classList.toggle("active", dataView);
     };

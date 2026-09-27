@@ -313,12 +313,12 @@
                     </div>
                 </section>
 
-                <a class="admin-match-link" href="./match-management.html">
+                <a class="admin-match-link" href="./match-management.html?event=team">
                     <span class="admin-match-link-icon"><i class="fa-solid fa-calendar-plus"></i></span>
                     <span class="admin-match-link-copy"><strong>競技・試合の作成と時間設定</strong><small>専用の試合管理ページを開く</small></span>
                     <i class="fa-solid fa-arrow-up-right-from-square admin-match-link-arrow"></i>
                 </a>
-                <a class="admin-match-link" href="./match-management.html#data-tools">
+                <a class="admin-match-link" href="./match-management.html?event=team#data-tools">
                     <span class="admin-match-link-icon"><i class="fa-solid fa-database"></i></span>
                     <span class="admin-match-link-copy"><strong>データ管理・リセット</strong><small>再認証が必要な専用ページを開く</small></span>
                     <i class="fa-solid fa-arrow-up-right-from-square admin-match-link-arrow"></i>
@@ -565,7 +565,7 @@
 
     <!-- モーダル: 試合詳細・時間個別調整 -->
     <div id="editModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden">
             <div class="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex justify-between items-center">
                 <h3 class="font-black text-xs text-slate-800 dark:text-slate-100 flex items-center gap-2" id="modalTitle">
                     <i class="fa-solid fa-clock text-sky-500"></i> 試合進行・担当者編集
@@ -574,7 +574,7 @@
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="p-4 space-y-3 text-xs">
+            <div class="p-4 space-y-3 text-xs overflow-y-auto flex-1 min-h-0">
                 <input type="hidden" id="modalMatchId">
 
                 <div class="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-1">
@@ -582,6 +582,8 @@
                     <div class="text-slate-500 dark:text-slate-400" id="modalCourtDetail">場所: -</div>
                     <div class="text-slate-500 dark:text-slate-400" id="modalTimeDetail">定刻: -</div>
                 </div>
+
+                <div id="teamMatchCardEditor" class="hidden space-y-2"></div>
 
                 <div class="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-2">
                     <label class="font-bold text-slate-700 dark:text-slate-300 block">第〇試合の設定:</label>
@@ -757,32 +759,35 @@
         window.SPORTS_PAGE_CONFIG = {
             dataDoc: "team_sports_main",
             backupDoc: "team_sports_backups",
-            scheduleStorageKey: "gym78_team_day_v2_schedule",
+            scheduleStorageKey: "gym78_team_day_v7_schedule",
             announcementStorageKey: "gym78_team_day_v1_announcement",
             historyPage: "team",
             defaultCourt: "上グラ",
             courts: ["上グラ"],
             expectedSports: ["開会式", "大玉送り", "竹取物語", "台風の目", "しっぽとり", "借り人競争", "部対抗リレー", "昼休み", "綱引き", "二人三脚", "100人フットボール", "選抜リレー", "騎馬戦", "団長騎馬戦", "閉会式"],
+            requiredScheduleField: "matchCards",
+            includeInitialInAdmin: true,
+            splitTeamBlocks: true,
             documentCandidates: [{ collection: "app_data", doc: "team_sports_main" }],
             initialSchedule: [
                 { id: "team_opening", blockId: "team_opening", blockTitle: "開会式", court: "上グラウンド", sport: "開会式", grade: "全校生徒", title: "開会式", format: "exhibition", teamA: "", teamB: "", start: "08:20", end: "08:50", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] },
-                { id: "team_01", blockId: "team_01", blockTitle: "大玉送り", court: "上グラウンド", sport: "大玉送り", grade: "中1・中2・中3", title: "大玉送り", format: "single", teamA: "A組", teamB: "B組", start: "08:50", end: "09:08", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
-                { id: "team_02", blockId: "team_02", blockTitle: "竹取物語", court: "上グラウンド", sport: "竹取物語", grade: "高1・高2", title: "竹取物語", format: "single", teamA: "前半", teamB: "後半", start: "09:08", end: "09:53", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
-                { id: "team_03", blockId: "team_03", blockTitle: "台風の目", court: "上グラウンド", sport: "台風の目", grade: "中1・中3・教師", title: "台風の目", format: "single", teamA: "前半", teamB: "後半", start: "09:53", end: "10:24", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
-                { id: "team_04", blockId: "team_04", blockTitle: "しっぽとり", court: "上グラウンド", sport: "しっぽとり", grade: "中2", title: "しっぽとり", format: "single", teamA: "A組", teamB: "B組", start: "10:24", end: "10:41", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
-                { id: "team_05", blockId: "team_05", blockTitle: "借り人競争", court: "上グラウンド", sport: "借り人競争", grade: "応援団員", title: "借り人競争", format: "single", teamA: "先着組", teamB: "次点組", start: "10:41", end: "10:53", status: "BEFORE", offsetMins: 0, pointRule: [100, 90, 80, 70] },
-                { id: "team_06", blockId: "team_06", blockTitle: "部対抗リレー", court: "上グラウンド", sport: "部対抗リレー", grade: "各部", title: "部対抗リレー", format: "exhibition", teamA: "", teamB: "", start: "10:53", end: "11:30", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] },
+                { id: "team_01", blockId: "team_01", blockTitle: "大玉送り", court: "上グラウンド", sport: "大玉送り", grade: "J1・J2・J3", title: "大玉送り", format: "tournament", teamA: "A/B", teamB: "C/D", tournamentType: "bracket", matchCards: [{ label: "第1試合（J1・J2・J3）", order: "A/B", teams: ["A", "B"] }, { label: "第2試合（J1・J2・J3）", order: "C/D", teams: ["C", "D"] }], matchOrder: ["A/B", "C/D"], start: "08:50", end: "09:08", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
+                { id: "team_02", blockId: "team_02", blockTitle: "竹取物語", court: "上グラウンド", sport: "竹取物語", grade: "H1・H2・H3", title: "竹取物語", format: "tournament", teamA: "A/B", teamB: "C/D", tournamentType: "bracket", matchCards: [{ label: "H1 第1試合", group: "H1", order: "A/B", teams: ["A", "B"] }, { label: "H1 第2試合", group: "H1", order: "C/D", teams: ["C", "D"] }, { label: "H2・H3 前半 第1試合", group: "H2・H3前半", order: "A/C", teams: ["A", "C"] }, { label: "H2・H3 前半 第2試合", group: "H2・H3前半", order: "B/D", teams: ["B", "D"] }, { label: "H2・H3 後半 第1試合", group: "H2・H3後半", order: "A/D", teams: ["A", "D"] }, { label: "H2・H3 後半 第2試合", group: "H2・H3後半", order: "B/C", teams: ["B", "C"] }], matchOrder: ["H1: A/B → C/D", "H2・H3前半: A/C → B/D", "H2・H3後半: A/D → B/C"], start: "09:08", end: "09:53", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
+                { id: "team_03", blockId: "team_03", blockTitle: "台風の目", court: "上グラウンド", sport: "台風の目", grade: "J1・J3・勝者・教師", title: "台風の目", format: "tournament", teamA: "A/B/C/D", teamB: "", tournamentType: "race", matchCards: [{ label: "J1・J3 前半", group: "J1・J3前半", order: "A/B/C/D 同時" }, { label: "J1・J3 後半", group: "J1・J3後半", order: "A/B/C/D 同時" }, { label: "勝者・教師", group: "勝者・教師", order: "勝者/教師" }], matchOrder: ["J1・J3前半: A/B/C/D同時", "J1・J3後半: A/B/C/D同時", "勝者/教師"], start: "09:53", end: "10:24", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
+                { id: "team_04", blockId: "team_04", blockTitle: "しっぽとり", court: "上グラウンド", sport: "しっぽとり", grade: "J2", title: "しっぽとり", format: "tournament", teamA: "C/D", teamB: "A/B", tournamentType: "bracket", matchCards: [{ label: "一回戦", order: "C/D", teams: ["C", "D"] }, { label: "決勝", order: "A/B", teams: ["A", "B"] }], matchOrder: ["一回戦: C/D", "決勝: A/B"], start: "10:24", end: "10:41", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_05", blockId: "team_05", blockTitle: "借り人競争", court: "上グラウンド", sport: "借り人競争", grade: "全学年", title: "借り人競争", format: "tournament", teamA: "A/B/C/D", teamB: "", tournamentType: "race", matchCards: [{ label: "全学年 同時", order: "A/B/C/D 同時" }, { label: "順位決定", order: "お題をすべて回答した順" }], matchOrder: ["A/B/C/D同時", "お題をすべて回答した順"], start: "10:41", end: "10:53", status: "BEFORE", offsetMins: 0, pointRule: [100, 90, 80, 70] },
+                { id: "team_06", blockId: "team_06", blockTitle: "部対抗リレー", court: "上グラウンド", sport: "部対抗リレー", grade: "全学年", title: "部対抗リレー", format: "tournament", teamA: "運動部", teamB: "文化部①", tournamentType: "race", matchCards: [{ label: "第1走", order: "運動部" }, { label: "第2走", order: "文化部①" }, { label: "第3走", order: "文化部②" }], matchOrder: ["運動部", "文化部①", "文化部②"], start: "10:53", end: "11:30", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] },
                 { id: "team_lunch", blockId: "team_lunch", blockTitle: "昼休み", court: "上グラウンド", sport: "昼休み", grade: "全校生徒", title: "昼休み", format: "exhibition", teamA: "", teamB: "", start: "11:30", end: "12:15", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] },
-                { id: "team_07", blockId: "team_07", blockTitle: "綱引き", court: "上グラウンド", sport: "綱引き", grade: "高3・中2・高1", title: "綱引き", format: "single", teamA: "前半", teamB: "後半", start: "12:15", end: "13:00", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
-                { id: "team_08", blockId: "team_08", blockTitle: "二人三脚", court: "上グラウンド", sport: "二人三脚", grade: "中1・教師", title: "二人三脚", format: "single", teamA: "生徒", teamB: "教師", start: "13:00", end: "13:21", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
-                { id: "team_09", blockId: "team_09", blockTitle: "100人フットボール", court: "上グラウンド", sport: "100人フットボール", grade: "中2・中3・高1", title: "100人フットボール", format: "single", teamA: "前半", teamB: "後半", start: "13:21", end: "14:06", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
-                { id: "team_10", blockId: "team_10", blockTitle: "選抜リレー", court: "上グラウンド", sport: "選抜リレー", grade: "選抜・教師", title: "選抜リレー", format: "single", teamA: "生徒", teamB: "教師", start: "14:06", end: "14:22", status: "BEFORE", offsetMins: 0, pointRule: [634, 434, 334, 234] },
-                { id: "team_11", blockId: "team_11", blockTitle: "騎馬戦", court: "上グラウンド", sport: "騎馬戦", grade: "高2・高3", title: "騎馬戦", format: "single", teamA: "前半", teamB: "後半", start: "14:22", end: "15:06", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
-                { id: "team_12", blockId: "team_12", blockTitle: "団長騎馬戦", court: "上グラウンド", sport: "団長騎馬戦", grade: "応援団長", title: "団長騎馬戦", format: "single", teamA: "前半", teamB: "後半", start: "15:06", end: "15:15", status: "BEFORE", offsetMins: 0, pointRule: [376, 276, 176, 76] },
+                { id: "team_07", blockId: "team_07", blockTitle: "綱引き", court: "上グラウンド", sport: "綱引き", grade: "H3・J2・H1・教師", title: "綱引き", format: "tournament", teamA: "A/C", teamB: "B/D", tournamentType: "bracket", matchCards: [{ label: "H3・教師 第1試合", group: "H3・教師", order: "A/C", teams: ["A", "C"] }, { label: "H3・教師 第2試合", group: "H3・教師", order: "B/D", teams: ["B", "D"] }, { label: "J2・H1 前半 第1試合", group: "J2・H1前半", order: "B/D", teams: ["B", "D"] }, { label: "J2・H1 前半 第2試合", group: "J2・H1前半", order: "A/C", teams: ["A", "C"] }, { label: "J2・H1 後半 第1試合", group: "J2・H1後半", order: "B/C", teams: ["B", "C"] }, { label: "J2・H1 後半 第2試合", group: "J2・H1後半", order: "A/D", teams: ["A", "D"] }], matchOrder: ["H3/教師: A/C → B/D", "J2・H1前半: B/D → A/C", "J2・H1後半: B/C → A/D"], start: "12:15", end: "13:00", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_08", blockId: "team_08", blockTitle: "二人三脚", court: "上グラウンド", sport: "二人三脚", grade: "J1・教師", title: "二人三脚", format: "tournament", teamA: "A/B/C/D", teamB: "", tournamentType: "race", matchCards: [{ label: "J1・教師 同時", order: "A/B/C/D 同時" }, { label: "順位決定", order: "最初にゴールした順" }], matchOrder: ["A/B/C/D同時", "最初にゴールした順"], start: "13:00", end: "13:21", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
+                { id: "team_09", blockId: "team_09", blockTitle: "100人フットボール", court: "上グラウンド", sport: "100人フットボール", grade: "H2・J3・H1", title: "100人フットボール", format: "tournament", teamA: "A/D", teamB: "B/C", tournamentType: "bracket", matchCards: [{ label: "H2 第1試合", group: "H2", order: "A/D", teams: ["A", "D"] }, { label: "H2 第2試合", group: "H2", order: "B/C", teams: ["B", "C"] }, { label: "J3・H1 前半 第1試合", group: "J3・H1前半", order: "B/C", teams: ["B", "C"] }, { label: "J3・H1 前半 第2試合", group: "J3・H1前半", order: "A/D", teams: ["A", "D"] }, { label: "J3・H1 後半 第1試合", group: "J3・H1後半", order: "C/D", teams: ["C", "D"] }, { label: "J3・H1 後半 第2試合", group: "J3・H1後半", order: "A/B", teams: ["A", "B"] }], matchOrder: ["H2: A/D → B/C", "J3・H1前半: B/C → A/D", "J3・H1後半: C/D → A/B"], start: "13:21", end: "14:06", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_10", blockId: "team_10", blockTitle: "選抜リレー", court: "上グラウンド", sport: "選抜リレー", grade: "全学年", title: "選抜リレー", format: "tournament", teamA: "A/B/C/D", teamB: "", tournamentType: "race", matchCards: [{ label: "全学年 同時", order: "A/B/C/D 同時" }, { label: "順位決定", order: "最初にゴールした順" }], matchOrder: ["A/B/C/D同時", "最初にゴールした順"], start: "14:06", end: "14:22", status: "BEFORE", offsetMins: 0, pointRule: [634, 434, 334, 234] },
+                { id: "team_11", blockId: "team_11", blockTitle: "騎馬戦", court: "上グラウンド", sport: "騎馬戦", grade: "H2・H3", title: "騎馬戦", format: "tournament", teamA: "A/B", teamB: "C/D", tournamentType: "bracket", matchCards: [{ label: "H2 第1試合", order: "A/B", teams: ["A", "B"] }, { label: "H2 第2試合", order: "C/D", teams: ["C", "D"] }, { label: "H3 第1試合", order: "A/B", teams: ["A", "B"] }, { label: "H3 第2試合", order: "C/D", teams: ["C", "D"] }, { label: "決勝", order: "勝者同士", teams: ["A", "B", "C", "D"] }], matchOrder: ["H2: A/B/C/D", "H3: A/B/C/D", "決勝"], start: "14:22", end: "15:06", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_12", blockId: "team_12", blockTitle: "団長騎馬戦", court: "上グラウンド", sport: "団長騎馬戦", grade: "応援団長", title: "団長騎馬戦", format: "tournament", teamA: "A/B/C/D", teamB: "", tournamentType: "race", matchCards: [{ label: "応援団長 同時", order: "A/B/C/D 同時" }, { label: "順位決定", order: "最後まで残った順" }], matchOrder: ["A/B/C/D同時", "最後まで残った順"], start: "15:06", end: "15:15", status: "BEFORE", offsetMins: 0, pointRule: [376, 276, 176, 76] },
                 { id: "team_closing", blockId: "team_closing", blockTitle: "閉会式", court: "上グラウンド", sport: "閉会式", grade: "全校生徒", title: "閉会式", format: "exhibition", teamA: "", teamB: "", start: "15:15", end: "15:27", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] }
             ]
         };
     </script>
-    <script src="./ballsports.js?v=20260927T8" defer></script>
+    <script src="./ballsports.js?v=20260928T2" defer></script>
 </body>
 </html>
