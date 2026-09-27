@@ -308,7 +308,7 @@ function normalizeScheduleEntries(value) {
             .map((entry) => typeof entry === "string" ? decodeStringifiedValue(entry) : entry)
             .filter((entry) => entry !== null && entry !== undefined);
         if (parsed.length === 0)
-            return null;
+            return [];
         return parsed.some((entry) => typeof entry === "string") ? null : parsed;
     }
     if (typeof value === "string") {
@@ -355,7 +355,7 @@ function normalizeRemoteAnnouncement(data) {
 }
 function applyRemoteDocumentData(data) {
     const remoteSchedule = extractRemoteSchedule(data);
-    if (!remoteSchedule || !Array.isArray(remoteSchedule) || remoteSchedule.length === 0) {
+    if (!remoteSchedule || !Array.isArray(remoteSchedule)) {
         console.warn("[同期] 有効なスケジュールなし");
         if (!appState.schedule || appState.schedule.length === 0)
             appState.schedule = INITIAL_SCHEDULE;
@@ -374,8 +374,6 @@ function applyRemoteDocumentData(data) {
         return true;
     }
     appState.schedule = nextSchedule;
-    if (appState.schedule.length === 0)
-        appState.schedule = INITIAL_SCHEDULE;
     appState.announcement = nextAnnouncement;
     localStorage.setItem("gym78_ball_day_v1_schedule", JSON.stringify(appState.schedule));
     localStorage.setItem("gym78_ball_day_v1_announcement", appState.announcement);
