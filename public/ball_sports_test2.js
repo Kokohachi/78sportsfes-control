@@ -178,7 +178,6 @@ function normalizeCompetitionSchedule(sourceSchedule) {
 function cloneInitialSchedule() {
     return INITIAL_SCHEDULE.map((match) => ({ ...match }));
 }
-const INITIAL_MATCH_IDS = new Set(INITIAL_SCHEDULE.map((match) => match.id));
 function loadPersistedSchedule() {
     try {
         const raw = localStorage.getItem("gym78_ball_day_v1_schedule");
@@ -1865,9 +1864,9 @@ function resetScoreLogs() {
     alert("得点ログを消去しました。");
 }
 function resetAllData() {
-    if (!confirm("全てのデータを初期状態にリセットしますか？"))
+    if (!confirm("初期データと入力した全ての競技を削除しますか？"))
         return;
-    appState.schedule = appState.schedule.filter((match) => !INITIAL_MATCH_IDS.has(match.id));
+    appState.schedule = [];
     appState.announcement = "";
     appState.expandedGroups = {};
     saveState();
