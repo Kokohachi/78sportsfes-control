@@ -183,7 +183,9 @@ function normalizeCompetitionSchedule(sourceSchedule) {
     return normalized;
 }
 function cloneInitialSchedule() {
-    return INITIAL_SCHEDULE.map((match) => ({ ...match }));
+    return INITIAL_SCHEDULE
+        .map((match) => normalizeScheduleEntry(match))
+        .filter((match) => match !== null);
 }
 const INITIAL_MATCH_IDS = new Set(INITIAL_SCHEDULE.map((match) => match.id));
 function loadPersistedSchedule() {
@@ -363,11 +365,19 @@ function normalizeRemoteAnnouncement(data) {
 }
 function applyRemoteDocumentData(data) {
     const remoteSchedule = extractRemoteSchedule(data);
-    if (!remoteSchedule || !Array.isArray(remoteSchedule)) {
+    if (!remoteSchedule || !Array.isArray(remoteSchedule) || remoteSchedule.length === 0) {
         console.warn("[同期] 有効なスケジュールなし");
         if (!appState.schedule || appState.schedule.length === 0)
             appState.schedule = INITIAL_SCHEDULE;
         return false;
+    }
+    const expectedSports = SPORTS_PAGE_CONFIG.expectedSports;
+    if (Array.isArray(expectedSports) && expectedSports.length > 0) {
+        const hasExpectedEvent = remoteSchedule.some((entry) => expectedSports.includes(entry.sport ?? entry.name ?? entry.title));
+        if (!hasExpectedEvent) {
+            console.warn("[同期] ページ種別に合わないスケジュールを無視");
+            return false;
+        }
     }
     const normalizedRemoteSchedule = remoteSchedule
         .map((match) => normalizeScheduleEntry(match))

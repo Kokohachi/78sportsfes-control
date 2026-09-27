@@ -55,9 +55,9 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="text-base font-black tracking-wider text-slate-800 dark:text-slate-100">第78回体育祭</h1>
-                        <span class="bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">団体競技日｜10月1日</span>
+                        <span class="bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">団体競技日｜10月2日</span>
                     </div>
-                    <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">6会場・7競技の進行と組別得点を一元管理</p>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">上グラウンド・全15ブロックの進行と組別得点を一元管理</p>
                 </div>
             </div>
 
@@ -112,19 +112,19 @@
         <section class="event-hero rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white/90 dark:bg-slate-900/95 shadow-sm overflow-hidden">
             <div class="px-5 py-5 md:px-7 md:py-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
                 <div>
-                    <p class="text-[10px] font-black tracking-[0.22em] text-sky-600 dark:text-sky-400 uppercase">SPORTS FESTIVAL 78 / BALL SPORTS DAY</p>
+                    <p class="text-[10px] font-black tracking-[0.22em] text-sky-600 dark:text-sky-400 uppercase">SPORTS FESTIVAL 78 / TEAM EVENTS DAY</p>
                     <h2 class="mt-2 text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">団体競技日 進行本部</h2>
                     <p class="mt-2 text-xs md:text-sm text-slate-500 dark:text-slate-400">雨天時は団体競技日に切り替え。現在の遅延と次の試合を会場ごとに確認できます。</p>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0 lg:min-w-[430px]">
-                    <div class="event-metric"><span>開催日</span><strong>10/1(木)</strong></div>
-                    <div class="event-metric"><span>進行時間</span><strong>08:20 - 15:00</strong></div>
-                    <div class="event-metric"><span>会場</span><strong>6会場</strong></div>
-                    <div class="event-metric"><span>競技</span><strong>7種目</strong></div>
+                    <div class="event-metric"><span>開催日</span><strong>10/2(金)</strong></div>
+                    <div class="event-metric"><span>進行時間</span><strong>08:20 - 15:27</strong></div>
+                    <div class="event-metric"><span>会場</span><strong>上グラウンド</strong></div>
+                    <div class="event-metric"><span>進行ブロック</span><strong>15件</strong></div>
                 </div>
             </div>
             <div class="px-5 py-2.5 md:px-7 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                <span><i class="fa-solid fa-futbol text-sky-500 mr-1"></i>サッカー</span><span>バスケ</span><span>ドッジボール</span><span>アルティメット</span><span>卓球</span><span>バレー</span><span>野球</span>
+                <span><i class="fa-solid fa-flag-checkered text-sky-500 mr-1"></i>開会式</span><span>大玉送り</span><span>竹取物語</span><span>台風の目</span><span>リレー</span><span>閉会式</span>
             </div>
         </section>
 
@@ -143,7 +143,7 @@
                         <label class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-100 px-2 py-1 dark:border-slate-700 dark:bg-slate-950">
                             <input type="checkbox" class="court-filter-checkbox" value="ALL" checked onchange="handleCourtFilterChange(this)"> 全て
                         </label>
-                        <label class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-100 px-2 py-1 dark:border-slate-700 dark:bg-slate-950"><input type="checkbox" class="court-filter-checkbox" value="上グラ1コート" checked onchange="handleCourtFilterChange(this)"> 上グラ1コート</label>
+                        <label class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-100 px-2 py-1 dark:border-slate-700 dark:bg-slate-950"><input type="checkbox" class="court-filter-checkbox" value="上グラ" checked onchange="handleCourtFilterChange(this)"> 上グラウンド</label>
                     </div>
 
                     <span class="text-slate-500 dark:text-slate-400 ml-2">ステータス:</span>
@@ -193,7 +193,7 @@
                     </div>
                     <div id="ganttCourtFilters" class="gantt-court-filters flex flex-wrap items-center gap-2" aria-label="ガントチャートの会場絞り込み">
                         <span class="text-xs font-black text-slate-500 dark:text-slate-400 mr-1">表示する会場</span>
-                        <label><input type="checkbox" class="gantt-court-checkbox" value="上グラ1コート" checked onchange="renderGantt()"> 上グラ1コート</label>
+                        <label><input type="checkbox" class="gantt-court-checkbox" value="上グラ" checked onchange="renderGantt()"> 上グラウンド</label>
                     </div>
                 </div>
                 <div class="overflow-x-auto relative pt-2 pb-2">
@@ -757,15 +757,32 @@
         window.SPORTS_PAGE_CONFIG = {
             dataDoc: "team_sports_main",
             backupDoc: "team_sports_backups",
-            scheduleStorageKey: "gym78_team_day_v1_schedule",
+            scheduleStorageKey: "gym78_team_day_v2_schedule",
             announcementStorageKey: "gym78_team_day_v1_announcement",
             historyPage: "team",
-            defaultCourt: "上グラ1コート",
-            courts: ["上グラ1コート"],
+            defaultCourt: "上グラ",
+            courts: ["上グラ"],
+            expectedSports: ["開会式", "大玉送り", "竹取物語", "台風の目", "しっぽとり", "借り人競争", "部対抗リレー", "昼休み", "綱引き", "二人三脚", "100人フットボール", "選抜リレー", "騎馬戦", "団長騎馬戦", "閉会式"],
             documentCandidates: [{ collection: "app_data", doc: "team_sports_main" }],
-            initialSchedule: []
+            initialSchedule: [
+                { id: "team_opening", blockId: "team_opening", blockTitle: "開会式", court: "上グラウンド", sport: "開会式", grade: "全校生徒", title: "開会式", format: "exhibition", teamA: "", teamB: "", start: "08:20", end: "08:50", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] },
+                { id: "team_01", blockId: "team_01", blockTitle: "大玉送り", court: "上グラウンド", sport: "大玉送り", grade: "中1・中2・中3", title: "大玉送り", format: "single", teamA: "A組", teamB: "B組", start: "08:50", end: "09:08", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
+                { id: "team_02", blockId: "team_02", blockTitle: "竹取物語", court: "上グラウンド", sport: "竹取物語", grade: "高1・高2", title: "竹取物語", format: "single", teamA: "前半", teamB: "後半", start: "09:08", end: "09:53", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
+                { id: "team_03", blockId: "team_03", blockTitle: "台風の目", court: "上グラウンド", sport: "台風の目", grade: "中1・中3・教師", title: "台風の目", format: "single", teamA: "前半", teamB: "後半", start: "09:53", end: "10:24", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_04", blockId: "team_04", blockTitle: "しっぽとり", court: "上グラウンド", sport: "しっぽとり", grade: "中2", title: "しっぽとり", format: "single", teamA: "A組", teamB: "B組", start: "10:24", end: "10:41", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_05", blockId: "team_05", blockTitle: "借り人競争", court: "上グラウンド", sport: "借り人競争", grade: "応援団員", title: "借り人競争", format: "single", teamA: "先着組", teamB: "次点組", start: "10:41", end: "10:53", status: "BEFORE", offsetMins: 0, pointRule: [100, 90, 80, 70] },
+                { id: "team_06", blockId: "team_06", blockTitle: "部対抗リレー", court: "上グラウンド", sport: "部対抗リレー", grade: "各部", title: "部対抗リレー", format: "exhibition", teamA: "", teamB: "", start: "10:53", end: "11:30", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] },
+                { id: "team_lunch", blockId: "team_lunch", blockTitle: "昼休み", court: "上グラウンド", sport: "昼休み", grade: "全校生徒", title: "昼休み", format: "exhibition", teamA: "", teamB: "", start: "11:30", end: "12:15", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] },
+                { id: "team_07", blockId: "team_07", blockTitle: "綱引き", court: "上グラウンド", sport: "綱引き", grade: "高3・中2・高1", title: "綱引き", format: "single", teamA: "前半", teamB: "後半", start: "12:15", end: "13:00", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_08", blockId: "team_08", blockTitle: "二人三脚", court: "上グラウンド", sport: "二人三脚", grade: "中1・教師", title: "二人三脚", format: "single", teamA: "生徒", teamB: "教師", start: "13:00", end: "13:21", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 50] },
+                { id: "team_09", blockId: "team_09", blockTitle: "100人フットボール", court: "上グラウンド", sport: "100人フットボール", grade: "中2・中3・高1", title: "100人フットボール", format: "single", teamA: "前半", teamB: "後半", start: "13:21", end: "14:06", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_10", blockId: "team_10", blockTitle: "選抜リレー", court: "上グラウンド", sport: "選抜リレー", grade: "選抜・教師", title: "選抜リレー", format: "single", teamA: "生徒", teamB: "教師", start: "14:06", end: "14:22", status: "BEFORE", offsetMins: 0, pointRule: [634, 434, 334, 234] },
+                { id: "team_11", blockId: "team_11", blockTitle: "騎馬戦", court: "上グラウンド", sport: "騎馬戦", grade: "高2・高3", title: "騎馬戦", format: "single", teamA: "前半", teamB: "後半", start: "14:22", end: "15:06", status: "BEFORE", offsetMins: 0, pointRule: [200, 150, 100, 100] },
+                { id: "team_12", blockId: "team_12", blockTitle: "団長騎馬戦", court: "上グラウンド", sport: "団長騎馬戦", grade: "応援団長", title: "団長騎馬戦", format: "single", teamA: "前半", teamB: "後半", start: "15:06", end: "15:15", status: "BEFORE", offsetMins: 0, pointRule: [376, 276, 176, 76] },
+                { id: "team_closing", blockId: "team_closing", blockTitle: "閉会式", court: "上グラウンド", sport: "閉会式", grade: "全校生徒", title: "閉会式", format: "exhibition", teamA: "", teamB: "", start: "15:15", end: "15:27", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] }
+            ]
         };
     </script>
-    <script src="./ballsports.js?v=20260927T7" defer></script>
+    <script src="./ballsports.js?v=20260927T8" defer></script>
 </body>
 </html>
