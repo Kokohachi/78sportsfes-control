@@ -178,6 +178,7 @@ function normalizeCompetitionSchedule(sourceSchedule) {
 function cloneInitialSchedule() {
     return INITIAL_SCHEDULE.map((match) => ({ ...match }));
 }
+const INITIAL_MATCH_IDS = new Set(INITIAL_SCHEDULE.map((match) => match.id));
 function loadPersistedSchedule() {
     try {
         const raw = localStorage.getItem("gym78_ball_day_v1_schedule");
@@ -1864,7 +1865,7 @@ function resetScoreLogs() {
 function resetAllData() {
     if (!confirm("全てのデータを初期状態にリセットしますか？"))
         return;
-    appState.schedule = cloneInitialSchedule();
+    appState.schedule = appState.schedule.filter((match) => !INITIAL_MATCH_IDS.has(match.id));
     appState.announcement = "";
     appState.expandedGroups = {};
     saveState();
