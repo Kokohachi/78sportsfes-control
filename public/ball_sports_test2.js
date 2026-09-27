@@ -1350,6 +1350,38 @@ function saveTimeConfig() {
     renderGantt();
     alert(`${updated}件の試合時間を保存しました。`);
 }
+function applyTimeConfig() {
+    const blockSelect = document.getElementById("timeConfigBlockSelect");
+    const startInput = document.getElementById("timeConfigStart");
+    const durationInput = document.getElementById("timeConfigDuration");
+    const intervalInput = document.getElementById("timeConfigInterval");
+    const blocks = getCompetitionBlocks();
+    const selectedKey = blockSelect?.value || blocks[0]?.key || "";
+    const block = blocks.find((item) => item.key === selectedKey) || blocks[0];
+    const start = startInput?.value || "";
+    const duration = Number(durationInput?.value);
+    const interval = Number(intervalInput?.value);
+    if (!block || !start) {
+        alert("競技ブロックと競技開始時刻を確認してください。");
+        return;
+    }
+    if (!Number.isFinite(duration) || duration < 1 || !Number.isFinite(interval) || interval < 0) {
+        alert("試合時間は1分以上、試合間時間は0分以上で入力してください。");
+        return;
+    }
+    const matches = [...block.matches].sort((a, b) => (a.start || "00:00").localeCompare(b.start || "00:00"));
+    matches.forEach((match, index) => {
+        const matchStart = addMinutesToTime(start, index * (duration + interval));
+        match.start = matchStart;
+        match.end = addMinutesToTime(matchStart, duration);
+    });
+    saveState();
+    renderTimeConfigEditor();
+    renderTimeline();
+    renderCourtDelaySummary();
+    renderGantt();
+    alert(`${matches.length}件の試合時刻を自動設定しました。`);
+}
 function deleteSelectedCompetition() {
     const sport = document.getElementById("deleteSportSelect")?.value ?? "ALL";
     const grade = document.getElementById("deleteGradeSelect")?.value ?? "ALL";
@@ -1915,5 +1947,6 @@ window.applyBulkOperations = applyBulkOperations;
 window.populateBlockSelectors = populateBlockSelectors;
 window.renderTimeConfigEditor = renderTimeConfigEditor;
 window.saveTimeConfig = saveTimeConfig;
+window.applyTimeConfig = applyTimeConfig;
 window.deleteSelectedCompetition = deleteSelectedCompetition;
 window.exportResultsCsv = exportResultsCsv;
