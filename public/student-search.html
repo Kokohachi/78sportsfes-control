@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>生徒照会｜第78回体育祭</title>
+  <link rel="stylesheet" href="./student-search.css">
+  <script defer src="./vendor/xlsx.full.min.js"></script>
+  <script defer src="./student-search.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a href="./index.html" class="back-link">← ポータルへ</a>
+    <div class="brand">第78回体育祭 <span>生徒照会</span></div>
+    <button id="lockButton" class="button button-quiet hidden" type="button">ロック</button>
+  </header>
+
+  <main>
+    <section id="unlockPanel" class="panel access-panel">
+      <p class="eyebrow">PRIVATE DIRECTORY</p>
+      <h1>生徒照会</h1>
+      <p class="muted">この画面は端末内のデータだけを検索します。生徒名簿は暗号化してこのブラウザーに保存されます。</p>
+      <form id="unlockForm">
+        <label for="accessPassword">照会パスワード</label>
+        <input id="accessPassword" type="password" autocomplete="current-password" required>
+        <button class="button button-primary" type="submit">ロック解除</button>
+      </form>
+      <p id="unlockMessage" class="message" role="status"></p>
+      <p class="privacy-note">名簿データはFirebaseや外部サービスへ送信しません。共有端末では利用後に必ずロックしてください。</p>
+    </section>
+
+    <section id="directoryPanel" class="hidden">
+      <div class="page-heading">
+        <div><p class="eyebrow">PRIVATE DIRECTORY</p><h1>生徒照会</h1><p id="datasetSummary" class="muted"></p></div>
+        <label class="button button-secondary file-button">Excel / CSVを更新<input id="importFile" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
+      </div>
+
+      <section class="panel import-panel">
+        <h2>名簿の更新</h2>
+        <div id="importOptions" class="hidden import-options">
+          <label>ワークシート<select id="sheetSelect"></select></label>
+          <label>更新方法<select id="importMode"><option value="replace">名簿を置き換える</option><option value="merge">照合キーで追加・更新する</option></select></label>
+          <label>照合キー<select id="keyField"></select></label>
+          <button id="confirmImport" class="button button-primary" type="button">この内容で更新</button>
+          <button id="cancelImport" class="button button-quiet" type="button">キャンセル</button>
+        </div>
+        <p id="importStatus" class="message" role="status">ExcelまたはCSVを選択してください。列名を自動認識し、追加列もそのまま取り込みます。</p>
+        <p class="privacy-note">パスワード付きExcelはこのブラウザーでは読み込めません。Excelで開き、ローカルでCSV UTF-8またはパスワードなしの.xlsxとして保存してから選択してください。変換ファイルも外部へ送信されません。</p>
+      </section>
+
+      <section class="panel search-panel">
+        <div class="search-heading"><div><h2>検索</h2><p class="muted">全項目を対象に検索できます。列が増えても自動で検索・絞り込み対象になります。</p></div><button id="exportButton" class="button button-secondary" type="button">表示中を出欠CSV出力</button></div>
+        <label class="search-label">氏名・番号・球技・所属など<input id="query" type="search" placeholder="複数の語句も入力できます"></label>
+        <div id="filters" class="filter-grid"></div>
+        <p id="resultCount" class="result-count"></p>
+        <div id="results" class="results" aria-live="polite"></div>
+      </section>
+      <p class="footer-note">出欠CSVの列は下の「出力項目」で選べます。メールアドレス等は初期状態で出力しません。</p>
+      <section class="panel export-fields-panel"><h2>出欠CSVの出力項目</h2><div id="exportFields" class="field-choices"></div><label class="check-label"><input id="includeAttendance" type="checkbox" checked> 空欄の出欠欄を追加する</label></section>
+    </section>
+  </main>
+</body>
+</html>
