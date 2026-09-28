@@ -616,8 +616,8 @@ html.dark #adminContent .text-slate-400 {
 
 .score-a { --team-accent: #fb7185; }
 .score-b { --team-accent: #38bdf8; }
-.score-c { --team-accent: #fbbf24; }
-.score-d { --team-accent: #34d399; }
+.score-c { --team-accent: #34d399; }
+.score-d { --team-accent: #fbbf24; }
 
 .admin-command-primary,
 .admin-command-secondary {
@@ -1247,4 +1247,13 @@ html.dark .stat-tile {
     max-height: 92vh;
     border-radius: 1rem 1rem 0 0;
   }
+}
+@keyframes delayed-match-flash {
+  0%, 100% { border-color: rgb(239 68 68 / 0.35); box-shadow: 0 0 0 0 rgb(239 68 68 / 0); }
+  50% { border-color: rgb(239 68 68); box-shadow: 0 0 0 3px rgb(239 68 68 / 0.22); }
+}
+
+.delayed-block {
+  border-color: rgb(239 68 68 / 0.8) !important;
+  animation: delayed-match-flash 1.15s ease-in-out infinite;
 }

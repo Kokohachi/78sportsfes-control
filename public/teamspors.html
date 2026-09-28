@@ -787,7 +787,51 @@
                 { id: "team_closing", blockId: "team_closing", blockTitle: "閉会式", court: "上グラウンド", sport: "閉会式", grade: "全校生徒", title: "閉会式", format: "exhibition", teamA: "", teamB: "", start: "15:15", end: "15:27", status: "BEFORE", offsetMins: 0, pointRule: [0, 0, 0, 0] }
             ]
         };
+
+        // 試合方式ごとの組み合わせを設定。保存済みデータがある場合も表示時に初期設定へ更新します。
+        const teamSchedule = window.SPORTS_PAGE_CONFIG.initialSchedule;
+        const event = (id) => teamSchedule.find((item) => item.id === id);
+        const configure = (id, values) => Object.assign(event(id), values);
+        configure("team_01", { matchCards: [
+            { label: "A 対 B", group: "大玉送り", order: "A/B", teams: ["A", "B"], resultMode: "time" },
+            { label: "C 対 D", group: "大玉送り", order: "C/D", teams: ["C", "D"], resultMode: "time" }
+        ] });
+        configure("team_03", { matchCards: [
+            { label: "J1・J3 前半1位", group: "J1・J3前半", order: "A/B/C/D 順位決定", teams: ["A", "B", "C", "D"], resultMode: "time" },
+            { label: "J1・J3 後半1位", group: "J1・J3後半", order: "A/B/C/D 順位決定", teams: ["A", "B", "C", "D"], resultMode: "time" },
+            { label: "対教師（得点対象外）", group: "対教師", order: "前半1位／後半1位／教師", teams: ["J1・J3前半1位", "J1・J3後半1位", "教師"], resultMode: "time", exhibition: true }
+        ] });
+        configure("team_04", { matchCards: [
+            { label: "一回戦", order: "C/D", teams: ["C", "D"], resultMode: "points" },
+            { label: "二回戦", order: "A/B", teams: ["A", "B"], resultMode: "points" },
+            { label: "決勝", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"], resultMode: "points" }
+        ] });
+        configure("team_06", { format: "exhibition", pointRule: [0, 0, 0, 0], matchCards: [
+            { label: "第一試合・運動部", group: "第一試合", order: "運動部", teams: ["運動部"], resultMode: "time", exhibition: true },
+            { label: "第二試合・文化部①", group: "第二試合", order: "文化部①", teams: ["文化部①"], resultMode: "time", exhibition: true },
+            { label: "第三試合・文化部②", group: "第三試合", order: "文化部②", teams: ["文化部②"], resultMode: "time", exhibition: true }
+        ] });
+        configure("team_07", { matchCards: [
+            { label: "H3 一回戦", group: "H3", order: "A/C", teams: ["A", "C"] }, { label: "H3 二回戦", group: "H3", order: "B/D", teams: ["B", "D"] }, { label: "H3 決勝", group: "H3", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] }, { label: "H3 対教師", group: "H3", order: "決勝勝者／教師", teams: ["決勝勝者", "教師"] },
+            { label: "J2・H1 前半 一回戦", group: "J2・H1前半", order: "B/D", teams: ["B", "D"] }, { label: "J2・H1 前半 二回戦", group: "J2・H1前半", order: "A/C", teams: ["A", "C"] }, { label: "J2・H1 前半 決勝", group: "J2・H1前半", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] },
+            { label: "J2・H1 後半 一回戦", group: "J2・H1後半", order: "B/C", teams: ["B", "C"] }, { label: "J2・H1 後半 二回戦", group: "J2・H1後半", order: "A/D", teams: ["A", "D"] }, { label: "J2・H1 後半 決勝", group: "J2・H1後半", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] }
+        ] });
+        configure("team_08", { tournamentType: "bracket", matchCards: [
+            { label: "J1・教師 タイム計測", group: "J1・教師", order: "A/B/C/D/教師 同時", teams: ["A", "B", "C", "D", "教師"], resultMode: "time", exhibition: true }
+        ] });
+        configure("team_09", { matchCards: [
+            { label: "H2 一回戦", group: "H2", order: "A/B", teams: ["A", "B"] }, { label: "H2 二回戦", group: "H2", order: "C/D", teams: ["C", "D"] }, { label: "H2 決勝", group: "H2", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] },
+            { label: "J3・H1 前半 一回戦", group: "J3・H1前半", order: "A/B", teams: ["A", "B"] }, { label: "J3・H1 前半 二回戦", group: "J3・H1前半", order: "C/D", teams: ["C", "D"] }, { label: "J3・H1 前半 決勝", group: "J3・H1前半", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] },
+            { label: "J3・H1 後半 一回戦", group: "J3・H1後半", order: "A/B", teams: ["A", "B"] }, { label: "J3・H1 後半 二回戦", group: "J3・H1後半", order: "C/D", teams: ["C", "D"] }, { label: "J3・H1 後半 決勝", group: "J3・H1後半", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] }
+        ] });
+        configure("team_10", { tournamentType: "bracket", matchCards: [
+            { label: "選抜リレー（教師タイム欄あり）", group: "選抜リレー", order: "A/B/C/D/教師", teams: ["A", "B", "C", "D", "教師"], resultMode: "time" }
+        ] });
+        configure("team_11", { matchCards: [
+            { label: "H2 一回戦", group: "H2", order: "A/B", teams: ["A", "B"] }, { label: "H2 二回戦", group: "H2", order: "C/D", teams: ["C", "D"] }, { label: "H2 決勝", group: "H2", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] },
+            { label: "H3 一回戦", group: "H3", order: "A/B", teams: ["A", "B"] }, { label: "H3 二回戦", group: "H3", order: "C/D", teams: ["C", "D"] }, { label: "H3 決勝", group: "H3", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] }
+        ] });
     </script>
-    <script src="./ballsports.js?v=20260928T2" defer></script>
+    <script src="./ballsports.js?v=20260928T3" defer></script>
 </body>
 </html>

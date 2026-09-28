@@ -55,11 +55,12 @@ function splitTeamCompetitionBlocks(schedule) {
             return [{ ...match, matchCards: cards.length ? cards : match.matchCards }];
         }
         const groups = getCompetitionGroups(match);
+        const competitionId = match.competitionId ?? match.parentBlockId ?? match.blockId ?? match.id;
         if (groups.length <= 1)
-            return [match];
+            return [{ ...match, parentBlockId: competitionId, competitionId }];
         return groups.map((group, index) => {
             const cards = Array.isArray(match.matchCards) ? match.matchCards.filter((card) => card.group === group || (!card.group && String(card.label ?? "").startsWith(group))).map((card) => ({ ...card, group: card.group ?? group })) : [];
-            return { ...match, id: `${match.id}_${index + 1}`, blockId: `${match.blockId}_${index + 1}`, blockTitle: `${match.sport}（${group}）`, title: `${match.sport}（${group}）`, grade: group, matchCards: cards.length > 0 ? cards : match.matchCards, matchOrder: cards.length > 0 ? cards.map((card) => card.order) : match.matchOrder };
+            return { ...match, id: `${match.id}_${index + 1}`, blockId: `${match.blockId}_${index + 1}`, parentBlockId: competitionId, competitionId, blockTitle: `${match.sport}（${group}）`, title: `${match.sport}（${group}）`, grade: group, pointRule: group.includes("対教師") ? [0, 0, 0, 0] : match.pointRule, matchCards: cards.length > 0 ? cards : match.matchCards, matchOrder: cards.length > 0 ? cards.map((card) => card.order) : match.matchOrder };
         });
     });
 }
@@ -238,6 +239,37 @@ function cloneInitialSchedule() {
         .map((match) => normalizeScheduleEntry(match))
         .filter((match) => match !== null);
 }
+function mergeTeamScheduleDefaults(schedule) {
+    if (!SPORTS_PAGE_CONFIG.splitTeamBlocks || !Array.isArray(SPORTS_PAGE_CONFIG.initialSchedule)) return schedule;
+    const defaults = new Map(SPORTS_PAGE_CONFIG.initialSchedule.map((match) => [match.id, match]));
+    return schedule.map((match) => {
+        const configured = defaults.get(match.id);
+        if (!configured) return match;
+        return { ...match, format: configured.format, tournamentType: configured.tournamentType, matchCards: configured.matchCards, matchOrder: configured.matchOrder, pointRule: configured.pointRule, inputMode: configured.inputMode };
+    });
+}
+function rebuildStoredTeamSchedule(schedule) {
+    if (!SPORTS_PAGE_CONFIG.splitTeamBlocks || !Array.isArray(SPORTS_PAGE_CONFIG.initialSchedule)) return schedule;
+    const configured = SPORTS_PAGE_CONFIG.initialSchedule;
+    const configuredIds = new Set(configured.map((match) => match.id));
+    const rootId = (match) => {
+        const candidate = match.competitionId ?? match.parentBlockId ?? String(match.id ?? "").replace(/_\d+(?:_card\d+)?$/, "");
+        return configuredIds.has(candidate) ? candidate : String(candidate).replace(/_\d+$/, "");
+    };
+    const rebuilt = configured.flatMap((template) => {
+        const prior = schedule.filter((match) => rootId(match) === template.id);
+        const base = prior.length ? { ...template, start: prior[0].start ?? template.start, end: prior[0].end ?? template.end, offsetMins: prior[0].offsetMins ?? template.offsetMins } : template;
+        const fresh = splitTeamCompetitionCards(splitTeamCompetitionBlocks([base]));
+        return fresh.map((match) => {
+            const previous = prior.find((item) => item.grade === match.grade && (item.teamA === match.teamA && item.teamB === match.teamB || item.teamA === match.teamB && item.teamB === match.teamA))
+                ?? prior.find((item) => item.title === match.title);
+            if (!previous) return match;
+            return { ...match, teamA: previous.teamA ?? match.teamA, teamB: previous.teamB ?? match.teamB, status: previous.status, offsetMins: previous.offsetMins ?? match.offsetMins, endOffsetMins: previous.endOffsetMins, scoreA: previous.scoreA, scoreB: previous.scoreB, cardResults: previous.cardResults ?? [], cardScores: previous.cardScores ?? [], cardRaceTimes: previous.cardRaceTimes ?? [], rankOrder: previous.rankOrder, rankByTeam: previous.rankByTeam, rankPointsByTeam: previous.rankPointsByTeam };
+        });
+    });
+    const custom = schedule.filter((match) => !configuredIds.has(match.id) && !configured.some((template) => rootId(match) === template.id));
+    return [...rebuilt, ...custom];
+}
 const INITIAL_MATCH_IDS = new Set(INITIAL_SCHEDULE.map((match) => match.id));
 function loadPersistedSchedule() {
     try {
@@ -247,13 +279,15 @@ function loadPersistedSchedule() {
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed) || parsed.length === 0)
             return cloneInitialSchedule();
-        const normalized = parsed
+        const normalized = mergeTeamScheduleDefaults(parsed
             .map((entry) => normalizeScheduleEntry(entry))
-            .filter((entry) => entry !== null && entry !== undefined);
+            .filter((entry) => entry !== null && entry !== undefined));
         if (normalized.length === 0)
             return cloneInitialSchedule();
-        if (normalized.some((match) => match.blockId))
-            return splitTeamCompetitionCards(splitTeamCompetitionBlocks(normalized));
+        if (normalized.some((match) => match.blockId)) {
+            const hasConfiguredBaseEvents = Array.isArray(SPORTS_PAGE_CONFIG.initialSchedule) && normalized.some((match) => SPORTS_PAGE_CONFIG.initialSchedule.some((configured) => configured.id === match.id));
+            return SPORTS_PAGE_CONFIG.splitTeamBlocks && !hasConfiguredBaseEvents ? rebuildStoredTeamSchedule(normalized) : splitTeamCompetitionCards(splitTeamCompetitionBlocks(normalized));
+        }
         const competitionSchedule = normalizeCompetitionSchedule(normalized);
         return competitionSchedule.length > 0 ? splitTeamCompetitionCards(competitionSchedule) : cloneInitialSchedule();
     }
@@ -438,9 +472,12 @@ function applyRemoteDocumentData(data) {
     const normalizedRemoteSchedule = remoteSchedule
         .map((match) => normalizeScheduleEntry(match))
         .filter((match) => match && typeof match === "object");
-    const preparedSchedule = normalizedRemoteSchedule.length > 0 ? normalizedRemoteSchedule : remoteSchedule;
+    const preparedSchedule = mergeTeamScheduleDefaults(normalizedRemoteSchedule.length > 0 ? normalizedRemoteSchedule : remoteSchedule);
     const needsNormalize = preparedSchedule.some((match) => !match.blockId || match.court === "上グラウンド" || match.court === "下グラウンド" || !["BEFORE", "IN_PROGRESS", "FINISHED"].includes(match.status ?? ""));
-    const nextSchedule = needsNormalize ? normalizeCompetitionSchedule(preparedSchedule) : preparedSchedule;
+    const hasConfiguredBaseEvents = Array.isArray(SPORTS_PAGE_CONFIG.initialSchedule) && preparedSchedule.some((match) => SPORTS_PAGE_CONFIG.initialSchedule.some((configured) => configured.id === match.id));
+    const nextSchedule = SPORTS_PAGE_CONFIG.splitTeamBlocks
+        ? hasConfiguredBaseEvents ? splitTeamCompetitionCards(splitTeamCompetitionBlocks(preparedSchedule)) : rebuildStoredTeamSchedule(preparedSchedule)
+        : needsNormalize ? normalizeCompetitionSchedule(preparedSchedule) : preparedSchedule;
     const nextAnnouncement = normalizeRemoteAnnouncement(data);
     const currentSignature = JSON.stringify({ schedule: appState.schedule ?? [], announcement: appState.announcement });
     const nextSignature = JSON.stringify({ schedule: nextSchedule ?? [], announcement: nextAnnouncement });
@@ -791,8 +828,9 @@ function renderTimeline() {
     }
     if (appState.timelineViewMode === "grouped") {
         const groups = {};
+        const teamDay = Boolean(SPORTS_PAGE_CONFIG.splitTeamBlocks);
         filtered.forEach((m) => {
-            const key = m.blockId ?? `${m.grade} - ${m.sport}`;
+            const key = teamDay ? (m.competitionId ?? m.parentBlockId ?? m.blockId ?? `${m.grade} - ${m.sport}`) : (m.blockId ?? `${m.grade} - ${m.sport}`);
             if (!groups[key])
                 groups[key] = [];
             groups[key].push(m);
@@ -804,12 +842,12 @@ function renderTimeline() {
         Object.keys(groups).forEach((gKey) => {
             const matches = groups[gKey].sort((a, b) => a.start.localeCompare(b.start));
             const firstMatch = matches[0];
-            const groupLabel = `${firstMatch.grade} / ${firstMatch.sport}`;
+            const groupLabel = teamDay ? firstMatch.sport : `${firstMatch.grade} / ${firstMatch.sport}`;
             const isExpanded = appState.expandedGroups[gKey] === true;
             const finishedCount = matches.filter((m) => m.status === "FINISHED").length;
             const inProgressCount = matches.filter((m) => m.status === "IN_PROGRESS").length;
             const groupCard = document.createElement("div");
-            groupCard.className = "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm";
+            groupCard.className = `bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm ${matches.some((match) => match.offsetMins > 0 || (match.endOffsetMins ?? 0) > 0) ? "delayed-block" : ""}`;
             groupCard.innerHTML = `
         <div onclick="toggleGroupExpand('${gKey}')" class="timeline-group-header p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-slate-100 dark:border-slate-800">
           <div class="flex items-center space-x-2.5">
@@ -826,7 +864,7 @@ function renderTimeline() {
           </div>
         </div>
 
-        ${isExpanded ? `<div class="p-2.5 bg-slate-50 dark:bg-slate-950/40 space-y-2">${matches.map((m) => createMatchItemHtml(m)).join("")}</div>` : ""}
+        ${isExpanded ? `<div class="p-2.5 bg-slate-50 dark:bg-slate-950/40 space-y-3">${teamDay ? [...new Map(matches.map((match) => [`${match.competitionId ?? match.parentBlockId ?? match.blockId}|${match.grade}`, match])).entries()].map(([blockId, blockMatch]) => { const blockMatches = matches.filter((match) => `${match.competitionId ?? match.parentBlockId ?? match.blockId}|${match.grade}` === blockId); return `<section class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/50 p-2"><h4 class="px-1 pb-2 text-xs font-black text-slate-500 dark:text-slate-400">${blockMatch.blockTitle ?? blockMatch.grade} ・ ${blockMatches.length}試合</h4><div class="space-y-2">${blockMatches.map((match) => createMatchItemHtml(match)).join("")}</div></section>`; }).join("") : matches.map((m) => createMatchItemHtml(m)).join("")}</div>` : ""}
       `;
             container.appendChild(groupCard);
         });
@@ -856,8 +894,9 @@ function renderTimeline() {
 }
 function createMatchItemHtml(m) {
     const adjStart = calcAdjustedTime(m.start, m.offsetMins);
-    const adjEnd = calcAdjustedTime(m.end, m.offsetMins);
-    const isDelayed = m.offsetMins > 0;
+    const adjEnd = calcAdjustedTime(m.end, m.offsetMins + (m.endOffsetMins ?? 0));
+    const blockMatches = m.blockId ? appState.schedule.filter((item) => item.blockId === m.blockId) : [m];
+    const isDelayed = blockMatches.some((item) => item.offsetMins > 0 || (item.endOffsetMins ?? 0) > 0);
     const formatVersus = (value) => String(value ?? "").replace(/\s*\/\s*/g, "対");
     const inputMode = m.inputMode ?? getCompetitionInputMode(m.sport);
     const tournamentCards = getCompetitionCards(m);
@@ -916,7 +955,7 @@ function createMatchItemHtml(m) {
                 </div>
             </div>`;
     return `
-    <div class="surface-card rounded-2xl p-3 space-y-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-500/60 cursor-pointer" onclick="openModal('${m.id}')">
+    <div class="surface-card rounded-2xl p-3 space-y-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-500/60 cursor-pointer ${isDelayed ? "delayed-block" : ""}" onclick="openModal('${m.id}')">
       <div class="flex flex-wrap justify-between items-center gap-2">
         <div class="flex items-center gap-2 flex-wrap">
           ${statusBadge}
@@ -1199,6 +1238,8 @@ function isCompetitionComplete(matches, format) {
         const ranked = matches.find((match) => match.rankPointsByTeam);
         if (ranked)
             return Object.keys(ranked.rankPointsByTeam).length === 4;
+        if (SPORTS_PAGE_CONFIG.splitTeamBlocks)
+            return matches.every((match) => match.status === "FINISHED" && match.scoreA !== null && match.scoreB !== null);
         const final = matches.find((match) => match.title === "決勝");
         const thirdPlace = matches.find((match) => match.title === "3位決定戦");
         return !!final && !!thirdPlace && hasResult(final) && hasResult(thirdPlace);
@@ -1329,7 +1370,7 @@ function renderGantt() {
                         const first = ordered[0];
                         const last = ordered[ordered.length - 1];
                         const adjustedStart = calcAdjustedTime(first.start, first.offsetMins);
-                        const adjustedEnd = calcAdjustedTime(last.end, last.offsetMins);
+                        const adjustedEnd = calcAdjustedTime(last.end, last.offsetMins + (last.endOffsetMins ?? 0));
                         const visibleStart = Math.max(startH * 60, parseTimeMinutes(adjustedStart));
                         const visibleEnd = Math.min(endH * 60, parseTimeMinutes(adjustedEnd));
                         if (visibleEnd <= visibleStart)
@@ -1342,7 +1383,7 @@ function renderGantt() {
                         const statusClass = statuses.has("IN_PROGRESS") ? "gantt-event-live" : statuses.size === 1 && statuses.has("FINISHED") ? "gantt-event-finished" : "gantt-event-before";
                         const details = expanded ? `<div class="gantt-group-details" aria-label="${first.grade} ${first.sport} の試合一覧">${ordered.map((match) => {
                                 const start = calcAdjustedTime(match.start, match.offsetMins);
-                                const end = calcAdjustedTime(match.end, match.offsetMins);
+                                const end = calcAdjustedTime(match.end, match.offsetMins + (match.endOffsetMins ?? 0));
                                 const status = match.status === "FINISHED" ? "終了" : match.status === "IN_PROGRESS" ? "進行中" : "開始前";
                                 return `<button type="button" class="gantt-detail-match" onclick="openModal('${match.id}')"><span class="gantt-detail-time">${start}–${end}</span><strong>${match.title}</strong><span>${match.teamA} 対 ${match.teamB}</span><small>${status}</small></button>`;
                         }).join("")}</div>` : "";
@@ -1447,7 +1488,7 @@ function renderResultsTab() {
       <div class="overflow-x-auto">
         <table class="w-full text-[11px] min-w-[420px]">
           <thead><tr class="text-left text-slate-400 border-b border-slate-200 dark:border-slate-800"><th class="py-1">順位</th><th>組</th><th>勝</th><th>分</th><th>敗</th><th>競技点</th></tr></thead>
-          <tbody>${standings.map((standing) => `<tr class="border-b border-slate-100 dark:border-slate-800/70"><td class="py-1.5 font-black">${competitionComplete ? `${standing.rank}位` : "未確定"}</td><td class="font-black">${standing.team}</td><td>${standing.wins}</td><td>${standing.draws}</td><td>${standing.losses}</td><td class="font-black text-sky-600 dark:text-sky-400">${competitionComplete ? `${standing.rankPoints}pt` : "-"}</td></tr>`).join("")}</tbody>
+          <tbody>${standings.map((standing) => `<tr class="border-b border-slate-100 dark:border-slate-800/70"><td class="py-1.5 font-black">${competitionComplete ? `${standing.rank}位` : "未確定"}</td><td class="font-black ${standing.team === "C" ? "text-emerald-600 dark:text-emerald-400" : standing.team === "D" ? "text-amber-500 dark:text-amber-400" : ""}">${standing.team}</td><td>${standing.wins}</td><td>${standing.draws}</td><td>${standing.losses}</td><td class="font-black text-sky-600 dark:text-sky-400">${competitionComplete ? `${standing.rankPoints}pt` : "-"}</td></tr>`).join("")}</tbody>
         </table>
       </div>
     `;
@@ -1542,12 +1583,16 @@ function calculateTournamentStandings(matches) {
     const stats = {};
     const ensureTeam = (team) => {
         if (team && !stats[team])
-            stats[team] = { wins: 0, draws: 0, losses: 0, points: 0 };
+            stats[team] = { wins: 0, draws: 0, losses: 0, points: 0, scored: 0, conceded: 0 };
     };
     matches.forEach((match) => { ensureTeam(match.teamA); ensureTeam(match.teamB); });
     matches.filter((match) => match.status === "FINISHED" && match.scoreA !== null && match.scoreB !== null).forEach((match) => {
         ensureTeam(match.teamA);
         ensureTeam(match.teamB);
+        stats[match.teamA].scored += match.scoreA;
+        stats[match.teamA].conceded += match.scoreB;
+        stats[match.teamB].scored += match.scoreB;
+        stats[match.teamB].conceded += match.scoreA;
         if (match.scoreA === match.scoreB) {
             stats[match.teamA].draws += 1;
             stats[match.teamB].draws += 1;
@@ -1578,7 +1623,16 @@ function calculateTournamentStandings(matches) {
             addRankedTeam(getLoser(thirdPlace));
         }
     }
-    Object.keys(stats).forEach((team) => addRankedTeam(team));
+    Object.keys(stats).filter((team) => !team.includes("準決勝") && !team.includes("勝者") && !team.includes("敗者")).forEach((team) => addRankedTeam(team));
+    if (SPORTS_PAGE_CONFIG.splitTeamBlocks) {
+        rankedTeams.splice(0, rankedTeams.length);
+        const decisiveMatch = matches.find((match) => match.title?.includes("決勝"));
+        if (decisiveMatch) {
+            addRankedTeam(getWinner(decisiveMatch));
+            addRankedTeam(getLoser(decisiveMatch));
+        }
+        ["A", "B", "C", "D"].filter((team) => stats[team]).sort((a, b) => stats[b].points - stats[a].points || (stats[b].scored - stats[b].conceded) - (stats[a].scored - stats[a].conceded) || stats[b].scored - stats[a].scored).forEach((team) => addRankedTeam(team));
+    }
     return rankedTeams.map((team, index) => ({
         team,
         ...stats[team],
@@ -1608,7 +1662,7 @@ function calculateScoresAndRanks() {
     appState.schedule.forEach((match) => {
         if (match.format === "exhibition")
             return;
-        const key = match.blockId ?? `${match.grade} - ${match.sport}`;
+        const key = SPORTS_PAGE_CONFIG.splitTeamBlocks ? `${match.competitionId ?? match.parentBlockId ?? match.blockId}|${match.grade}` : (match.blockId ?? `${match.grade} - ${match.sport}`);
         if (!categories[key])
             categories[key] = [];
         categories[key].push(match);
@@ -1982,8 +2036,39 @@ function createCompetitionBlock() {
     calculateScoresAndRanks();
     alert(`${grade} ${sport}の試合ブロックを${definitions.length}試合作成しました。`);
 }
+function resolveTeamParticipant(match, team) {
+    const label = String(team ?? "");
+    if (!label || /^[A-D]$/.test(label) || label === "教師" || label.startsWith("運動部") || label.startsWith("文化部")) return label;
+    const siblings = appState.schedule.filter((item) => (item.competitionId ?? item.parentBlockId ?? item.blockId) === (match.competitionId ?? match.parentBlockId ?? match.blockId));
+    if (/前半1位|後半1位/.test(label)) {
+        const group = label.includes("前半") ? "前半" : "後半";
+        const source = siblings.find((item) => item.grade?.includes(group) && item.rankOrder?.length);
+        return source?.rankOrder?.[0] ?? label;
+    }
+    if (/一回戦勝者|二回戦勝者|決勝勝者/.test(label)) {
+        const stage = label.includes("決勝") ? "決勝" : label.includes("一回戦") ? "一回戦" : "二回戦";
+        const source = siblings.find((item) => item !== match && item.title?.includes(stage) && getWinner(item));
+        return source ? getWinner(source) : label;
+    }
+    return label;
+}
+function updateBigBallRanking(match) {
+    if (match.sport !== "大玉送り") return;
+    const siblings = appState.schedule.filter((item) => (item.competitionId ?? item.parentBlockId ?? item.blockId) === (match.competitionId ?? match.parentBlockId ?? match.blockId));
+    const times = {};
+    siblings.forEach((item) => (item.cardRaceTimes ?? []).forEach((entry) => Object.entries(entry ?? {}).forEach(([team, value]) => {
+        const parsed = /^([0-9]+):([0-5][0-9])$/.exec(String(value));
+        if (/^[A-D]$/.test(team) && parsed) times[team] = Number(parsed[1]) * 60 + Number(parsed[2]);
+    })));
+    if (!["A", "B", "C", "D"].every((team) => Number.isFinite(times[team]))) return;
+    const ranking = ["A", "B", "C", "D"].sort((a, b) => times[a] - times[b]);
+    const points = Object.fromEntries(ranking.map((team, index) => [team, match.pointRule?.[index] ?? 0]));
+    siblings.forEach((item) => { item.rankOrder = ranking; item.rankByTeam = Object.fromEntries(ranking.map((team, index) => [team, index + 1])); item.rankPointsByTeam = points; });
+}
 function getTeamCardDefaultMode(sport) {
-    return ["竹取物語", "100人フットボール"].includes(sport) ? "points" : "winner";
+    if (["竹取物語", "しっぽとり", "100人フットボール"].includes(sport)) return "points";
+    if (["大玉送り", "台風の目", "二人三脚", "選抜リレー"].includes(sport)) return "time";
+    return "winner";
 }
 function renderTeamMatchCardEditor() {
     const matchId = document.getElementById("modalMatchId")?.value;
@@ -1992,17 +2077,18 @@ function renderTeamMatchCardEditor() {
     if (!match || !editor)
         return;
     const drafts = {};
-    editor.querySelectorAll("[data-card-result-mode], [data-card-score], [data-card-winner], [data-card-start], [data-card-end]").forEach((input) => {
-        const index = Number(input.dataset.cardResultMode ?? input.dataset.cardScore ?? input.dataset.cardWinner ?? input.dataset.cardStart ?? input.dataset.cardEnd);
+    editor.querySelectorAll("[data-card-result-mode], [data-card-score], [data-card-winner], [data-card-race-time], [data-card-start], [data-card-end]").forEach((input) => {
+        const index = Number(input.dataset.cardResultMode ?? input.dataset.cardScore ?? input.dataset.cardWinner ?? input.dataset.cardRaceTime ?? input.dataset.cardStart ?? input.dataset.cardEnd);
         drafts[index] ??= { scores: {}, times: {} };
         if (input.hasAttribute("data-card-result-mode")) drafts[index].mode = input.value;
         if (input.hasAttribute("data-card-score")) drafts[index].scores[input.dataset.team] = input.value;
         if (input.hasAttribute("data-card-winner")) drafts[index].winner = input.value;
+        if (input.hasAttribute("data-card-race-time")) { drafts[index].timesByTeam ??= {}; drafts[index].timesByTeam[input.dataset.team] = input.value; }
         if (input.hasAttribute("data-card-start")) drafts[index].times.start = input.value;
         if (input.hasAttribute("data-card-end")) drafts[index].times.end = input.value;
     });
     editor.innerHTML = `<div class="font-bold text-slate-700 dark:text-slate-300">試合ごとの結果・時間</div>${(match.matchCards ?? []).map((card, index) => {
-        const teams = card.teams?.length ? card.teams : String(card.order ?? "A/B").split(/[\/・,、]/).filter((team) => /^[A-D]$/.test(team.trim())).map((team) => team.trim());
+        const teams = (card.teams?.length ? card.teams : String(card.order ?? "A/B").split(/[\/・,、]/).filter((team) => /^[A-D]$/.test(team.trim())).map((team) => team.trim())).map((team) => resolveTeamParticipant(match, team));
         const mode = drafts[index]?.mode ?? card.resultMode ?? getTeamCardDefaultMode(match.sport);
         const cardTime = match.cardTimes?.[index] ?? {};
         const score = match.cardScores?.[index] ?? {};
@@ -2011,10 +2097,10 @@ function renderTeamMatchCardEditor() {
           <div class="text-center font-black text-slate-500">${(teams.length ? teams : [match.teamA, match.teamB]).join(" vs ")}</div>
           <label class="block text-[10px] font-bold text-slate-500">結果方式
             <select data-card-result-mode="${index}" onchange="renderTeamMatchCardEditor()" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold dark:bg-slate-900">
-              <option value="winner" ${mode === "winner" ? "selected" : ""}>勝者を選択</option><option value="points" ${mode === "points" ? "selected" : ""}>点数で決定</option>
+              <option value="winner" ${mode === "winner" ? "selected" : ""}>勝者を選択</option><option value="points" ${mode === "points" ? "selected" : ""}>点数で決定</option><option value="time" ${mode === "time" ? "selected" : ""}>タイムで決定</option>
             </select>
           </label>
-          ${mode === "points" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} 点数<input type="number" min="0" step="1" data-card-score="${index}" data-team="${team}" value="${drafts[index]?.scores[team] ?? score[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : `<label class="block text-[10px] font-bold text-slate-500">勝者<select data-card-winner="${index}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold dark:bg-slate-900"><option value="">未入力</option>${teams.map((team) => `<option value="${team}" ${(drafts[index]?.winner ?? match.cardResults?.[index]) === team ? "selected" : ""}>${team} 組</option>`).join("")}</select></label>`}
+          ${mode === "points" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} 点数<input type="number" min="0" max="${match.sport === "竹取物語" ? 150 : match.sport === "しっぽとり" ? 100 : ""}" step="${match.sport === "竹取物語" ? 10 : 1}" data-card-score="${index}" data-team="${team}" value="${drafts[index]?.scores[team] ?? score[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : mode === "time" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} タイム<input type="text" inputmode="numeric" placeholder="分:秒" data-card-race-time="${index}" data-team="${team}" value="${drafts[index]?.timesByTeam?.[team] ?? match.cardRaceTimes?.[index]?.[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : `<label class="block text-[10px] font-bold text-slate-500">勝者<select data-card-winner="${index}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold dark:bg-slate-900"><option value="">未入力</option>${teams.map((team) => `<option value="${team}" ${(drafts[index]?.winner ?? match.cardResults?.[index]) === team ? "selected" : ""}>${team} 勝利</option>`).join("")}</select></label>`}
           <div class="grid grid-cols-2 gap-2"><label class="text-[10px] font-bold text-slate-500">開始<input type="time" data-card-start="${index}" value="${drafts[index]?.times.start ?? cardTime.start ?? match.start ?? "08:00"}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 dark:bg-slate-900"></label><label class="text-[10px] font-bold text-slate-500">終了<input type="time" data-card-end="${index}" value="${drafts[index]?.times.end ?? cardTime.end ?? match.end ?? "08:30"}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 dark:bg-slate-900"></label></div>
         </section>`;
     }).join("")}`;
@@ -2033,7 +2119,9 @@ function openModal(matchId) {
     document.getElementById("inputModalScoreA").value = m.scoreA === null ? "" : String(m.scoreA);
     document.getElementById("inputModalScoreB").value = m.scoreB === null ? "" : String(m.scoreB);
     setModalStatus(m.status || "BEFORE");
-    document.getElementById("inputDelayMinutes").value = String(m.offsetMins);
+    document.getElementById("inputDelayMinutes").value = String(m.status === "IN_PROGRESS" ? (m.endOffsetMins ?? 0) : m.offsetMins);
+    const delayLabel = document.getElementById("delayAdjustmentLabel");
+    if (delayLabel) delayLabel.textContent = m.status === "IN_PROGRESS" ? "終了時刻の延長・短縮 (分)" : "開始時刻の前倒し・遅延 (分)";
     document.getElementById("inputCompetitionLead").value = m.competitionLead ?? m.staff ?? "";
     document.getElementById("inputReferee").value = m.referee ?? "";
     document.getElementById("inputAttendance").value = m.attendance ?? "";
@@ -2050,6 +2138,11 @@ function closeModal() {
 }
 function setModalStatus(st) {
     appState.selectedModalStatus = st;
+    const delayLabel = document.getElementById("delayAdjustmentLabel");
+    if (delayLabel) delayLabel.textContent = st === "IN_PROGRESS" ? "終了時刻の延長・短縮 (分)" : "開始時刻の前倒し・遅延 (分)";
+    const currentMatch = appState.schedule.find((item) => item.id === document.getElementById("modalMatchId")?.value);
+    const delayInput = document.getElementById("inputDelayMinutes");
+    if (currentMatch && delayInput) delayInput.value = String(st === "IN_PROGRESS" ? (currentMatch.endOffsetMins ?? 0) : currentMatch.offsetMins);
     ["BEFORE", "IN_PROGRESS", "FINISHED"].forEach((s) => {
         const btn = document.getElementById(`statusBtn${s}`);
         if (!btn)
@@ -2077,29 +2170,59 @@ function saveModalData() {
         return;
     const before = { scoreA: m.scoreA, scoreB: m.scoreB, status: m.status, offsetMins: m.offsetMins };
     const newOffset = parseInt(document.getElementById("inputDelayMinutes").value, 10) || 0;
-    const diff = newOffset - m.offsetMins;
+    const isInProgress = appState.selectedModalStatus === "IN_PROGRESS";
+    const oldOffset = isInProgress ? (m.endOffsetMins ?? 0) : m.offsetMins;
+    const diff = newOffset - oldOffset;
     const teamDay = Boolean(SPORTS_PAGE_CONFIG.splitTeamBlocks);
     m.status = appState.selectedModalStatus;
     if (teamDay) {
         m.cardResults = [];
         m.cardScores = [];
         m.cardTimes = [];
+        m.cardRaceTimes = [];
         (m.matchCards ?? []).forEach((card, index) => {
             const mode = document.querySelector(`[data-card-result-mode="${index}"]`)?.value ?? card.resultMode ?? getTeamCardDefaultMode(m.sport);
-            const teams = card.teams?.length ? card.teams : String(card.order ?? "A/B").split(/[\/・,、]/).filter((team) => /^[A-D]$/.test(team.trim())).map((team) => team.trim());
+            const teams = (card.teams?.length ? card.teams : String(card.order ?? "A/B").split(/[\/・,、]/).filter((team) => /^[A-D]$/.test(team.trim())).map((team) => team.trim())).map((team) => resolveTeamParticipant(m, team));
             card.resultMode = mode;
+            if (teams.length >= 2) { m.teamA = teams[0]; m.teamB = teams[1]; }
             const times = { start: document.querySelector(`[data-card-start="${index}"]`)?.value ?? m.start, end: document.querySelector(`[data-card-end="${index}"]`)?.value ?? m.end };
             m.cardTimes[index] = times;
             if (mode === "points") {
                 const scores = Object.fromEntries(teams.map((team) => { const value = document.querySelector(`[data-card-score="${index}"][data-team="${team}"]`)?.value ?? ""; return [team, value === "" ? NaN : Number(value)]; }));
                 m.cardScores[index] = scores;
                 const entered = Object.entries(scores).filter(([, score]) => Number.isFinite(score));
+                const maxScore = m.sport === "竹取物語" ? 150 : m.sport === "しっぽとり" ? 100 : Infinity;
+                const scoreStep = m.sport === "竹取物語" ? 10 : 1;
+                if (entered.some(([, score]) => score < 0 || score > maxScore || score % scoreStep !== 0)) {
+                    alert(m.sport === "竹取物語" ? "竹取物語は10点刻みで150点まで入力してください。" : "しっぽとりは0〜100点で入力してください。");
+                    return;
+                }
                 const highScore = Math.max(...entered.map(([, score]) => score));
                 const winners = entered.filter(([, score]) => score === highScore);
                 m.cardResults[index] = entered.length && winners.length === 1 ? winners[0][0] : "";
                 if (teams.length >= 2) {
                     m.scoreA = Number.isFinite(scores[teams[0]]) ? scores[teams[0]] : null;
                     m.scoreB = Number.isFinite(scores[teams[1]]) ? scores[teams[1]] : null;
+                }
+            }
+            else if (mode === "time") {
+                const raceTimes = Object.fromEntries(teams.map((team) => [team, document.querySelector(`[data-card-race-time="${index}"][data-team="${team}"]`)?.value.trim() ?? ""]));
+                const seconds = Object.fromEntries(teams.map((team) => { const parsed = /^([0-9]+):([0-5][0-9])$/.exec(raceTimes[team]); return [team, parsed ? Number(parsed[1]) * 60 + Number(parsed[2]) : NaN]; }));
+                m.cardRaceTimes[index] = raceTimes;
+                const ranked = teams.filter((team) => /^[A-D]$/.test(team) && Number.isFinite(seconds[team])).sort((a, b) => seconds[a] - seconds[b]);
+                if (ranked.length === teams.filter((team) => /^[A-D]$/.test(team)).length && ranked.length >= 2) {
+                    m.cardResults[index] = ranked[0];
+                    m.rankOrder = ranked;
+                    m.rankByTeam = Object.fromEntries(ranked.map((team, rank) => [team, rank + 1]));
+                    m.rankPointsByTeam = Object.fromEntries(ranked.map((team, rank) => [team, m.pointRule?.[rank] ?? 0]));
+                }
+                else if (teams.length >= 2 && Number.isFinite(seconds[teams[0]]) && Number.isFinite(seconds[teams[1]])) {
+                    m.cardResults[index] = seconds[teams[0]] === seconds[teams[1]] ? "" : seconds[teams[0]] < seconds[teams[1]] ? teams[0] : teams[1];
+                }
+                if (teams.length >= 2) {
+                    const winner = m.cardResults[index];
+                    m.scoreA = winner ? (winner === teams[0] ? 1 : 0) : null;
+                    m.scoreB = winner ? (winner === teams[1] ? 1 : 0) : null;
                 }
             }
             else {
@@ -2124,14 +2247,21 @@ function saveModalData() {
         m.scoreA = scoreA === "" ? null : Math.max(0, parseInt(scoreA, 10) || 0);
         m.scoreB = scoreB === "" ? null : Math.max(0, parseInt(scoreB, 10) || 0);
     }
-    updateTournamentBracket(m.blockId);
-    updateExhibitionTeams(m.sport);
+        updateTournamentBracket(m.blockId);
+        updateBigBallRanking(m);
+        updateExhibitionTeams(m.sport);
     m.referee = document.getElementById("inputReferee").value;
     m.competitionLead = document.getElementById("inputCompetitionLead").value;
     m.staff = m.competitionLead;
     m.attendance = document.getElementById("inputAttendance").value;
     recordSportsHistory({ type: "result", eventId: m.id, eventName: `${m.grade} ${m.sport} ${m.title}`, grade: m.grade, venue: m.court, before, after: { scoreA: m.scoreA, scoreB: m.scoreB, status: m.status, offsetMins: m.offsetMins } });
-    if (diff !== 0) {
+    if (diff !== 0 && isInProgress) {
+        m.endOffsetMins = newOffset;
+        saveState();
+        renderTimeline();
+        renderCourtDelaySummary();
+    }
+    else if (diff !== 0) {
         applyCascadeOffset(m.id, diff);
     }
     else {

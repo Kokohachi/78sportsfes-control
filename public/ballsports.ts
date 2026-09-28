@@ -22,6 +22,7 @@ type Match = {
   attendance?: string;
   status: MatchStatus;
   offsetMins: number;
+  endOffsetMins?: number;
   blockId?: string;
   blockTitle?: string;
   pointRule?: [number, number, number, number];
@@ -739,7 +740,7 @@ function renderTimeline(): void {
       const inProgressCount = matches.filter((m) => m.status === "IN_PROGRESS").length;
 
       const groupCard = document.createElement("div");
-      groupCard.className = "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm";
+      groupCard.className = `bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm ${matches.some((match) => match.offsetMins > 0 || (match.endOffsetMins ?? 0) > 0) ? "delayed-block" : ""}`;
 
       groupCard.innerHTML = `
         <div onclick="toggleGroupExpand('${gKey}')" class="timeline-group-header p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition border-b border-slate-100 dark:border-slate-800">
@@ -788,8 +789,9 @@ function renderTimeline(): void {
 
 function createMatchItemHtml(m: Match): string {
   const adjStart = calcAdjustedTime(m.start, m.offsetMins);
-  const adjEnd = calcAdjustedTime(m.end, m.offsetMins);
-  const isDelayed = m.offsetMins > 0;
+  const adjEnd = calcAdjustedTime(m.end, m.offsetMins + (m.endOffsetMins ?? 0));
+  const blockMatches = m.blockId ? appState.schedule.filter((item) => item.blockId === m.blockId) : [m];
+  const isDelayed = blockMatches.some((item) => item.offsetMins > 0 || (item.endOffsetMins ?? 0) > 0);
 
   let statusBadge = '<span class="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded font-bold">開始前</span>';
   if (m.status === "IN_PROGRESS") statusBadge = '<span class="bg-amber-500 text-slate-950 text-[10px] px-2 py-0.5 rounded font-black animate-pulse">進行中</span>';
@@ -799,7 +801,7 @@ function createMatchItemHtml(m: Match): string {
   const scoreBVal = m.scoreB !== null ? String(m.scoreB) : "";
 
   return `
-    <div class="surface-card rounded-2xl p-3 space-y-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-500/60 cursor-pointer" onclick="openModal('${m.id}')">
+    <div class="surface-card rounded-2xl p-3 space-y-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-500/60 cursor-pointer ${isDelayed ? "delayed-block" : ""}" onclick="openModal('${m.id}')">
       <div class="flex flex-wrap justify-between items-center gap-2">
         <div class="flex items-center gap-2 flex-wrap">
           ${statusBadge}
@@ -985,7 +987,7 @@ function renderGantt(): void {
       const first = ordered[0];
       const last = ordered[ordered.length - 1];
       const adjustedStart = calcAdjustedTime(first.start, first.offsetMins);
-      const adjustedEnd = calcAdjustedTime(last.end, last.offsetMins);
+      const adjustedEnd = calcAdjustedTime(last.end, last.offsetMins + (last.endOffsetMins ?? 0));
       const startMinuteOfDay = parseTimeMinutes(adjustedStart);
       const endMinuteOfDay = parseTimeMinutes(adjustedEnd);
       const visibleStart = Math.max(startH * 60, startMinuteOfDay);
@@ -1001,7 +1003,7 @@ function renderGantt(): void {
         <div class="gantt-group-details" aria-label="${first.grade} ${first.sport} の試合一覧">
           ${ordered.map((match) => {
             const matchStart = calcAdjustedTime(match.start, match.offsetMins);
-            const matchEnd = calcAdjustedTime(match.end, match.offsetMins);
+            const matchEnd = calcAdjustedTime(match.end, match.offsetMins + (match.endOffsetMins ?? 0));
             const state = match.status === "FINISHED" ? "終了" : match.status === "IN_PROGRESS" ? "進行中" : "開始前";
             return `<button type="button" class="gantt-detail-match" onclick="openModal('${match.id}')"><span class="gantt-detail-time">${matchStart}–${matchEnd}</span><strong>${match.title}</strong><span>${match.teamA} 対 ${match.teamB}</span><small>${state}</small></button>`;
           }).join("")}
@@ -1123,7 +1125,7 @@ function renderResultsTab(): void {
       <div class="overflow-x-auto">
         <table class="w-full text-[11px] min-w-[420px]">
           <thead><tr class="text-left text-slate-400 border-b border-slate-200 dark:border-slate-800"><th class="py-1">順位</th><th>組</th><th>勝</th><th>分</th><th>敗</th><th>競技点</th></tr></thead>
-          <tbody>${standings.map((standing) => `<tr class="border-b border-slate-100 dark:border-slate-800/70"><td class="py-1.5 font-black">${competitionComplete ? `${standing.rank}位` : "未確定"}</td><td class="font-black">${standing.team}</td><td>${standing.wins}</td><td>${standing.draws}</td><td>${standing.losses}</td><td class="font-black text-sky-600 dark:text-sky-400">${competitionComplete ? `${standing.rankPoints}pt` : "-"}</td></tr>`).join("")}</tbody>
+          <tbody>${standings.map((standing) => `<tr class="border-b border-slate-100 dark:border-slate-800/70"><td class="py-1.5 font-black">${competitionComplete ? `${standing.rank}位` : "未確定"}</td><td class="font-black ${standing.team === "C" ? "text-emerald-600 dark:text-emerald-400" : standing.team === "D" ? "text-amber-500 dark:text-amber-400" : ""}">${standing.team}</td><td>${standing.wins}</td><td>${standing.draws}</td><td>${standing.losses}</td><td class="font-black text-sky-600 dark:text-sky-400">${competitionComplete ? `${standing.rankPoints}pt` : "-"}</td></tr>`).join("")}</tbody>
         </table>
       </div>
     `;
@@ -1234,7 +1236,7 @@ function calculateTournamentStandings(matches: Match[]): Array<{ team: string; w
       addRankedTeam(getLoser(thirdPlace));
     }
   }
-  Object.keys(stats).forEach((team) => addRankedTeam(team));
+  Object.keys(stats).filter((team) => !team.includes("準決勝") && !team.includes("勝者") && !team.includes("敗者")).forEach((team) => addRankedTeam(team));
 
   return rankedTeams.map((team, index) => ({
     team,
@@ -1430,7 +1432,9 @@ function openModal(matchId: string): void {
   (document.getElementById("inputModalScoreB") as HTMLInputElement).value = m.scoreB === null ? "" : String(m.scoreB);
 
   setModalStatus(m.status || "BEFORE");
-  (document.getElementById("inputDelayMinutes") as HTMLInputElement).value = String(m.offsetMins);
+  (document.getElementById("inputDelayMinutes") as HTMLInputElement).value = String(m.status === "IN_PROGRESS" ? (m.endOffsetMins ?? 0) : m.offsetMins);
+  const delayLabel = document.getElementById("delayAdjustmentLabel");
+  if (delayLabel) delayLabel.textContent = m.status === "IN_PROGRESS" ? "終了時刻の延長・短縮 (分)" : "開始時刻の前倒し・遅延 (分)";
   (document.getElementById("inputCompetitionLead") as HTMLInputElement).value = m.competitionLead ?? m.staff ?? "";
   (document.getElementById("inputReferee") as HTMLInputElement).value = m.referee ?? "";
   (document.getElementById("inputAttendance") as HTMLInputElement).value = m.attendance ?? "";
@@ -1445,6 +1449,8 @@ function closeModal(): void {
 
 function setModalStatus(st: MatchStatus): void {
   appState.selectedModalStatus = st;
+  const delayLabel = document.getElementById("delayAdjustmentLabel");
+  if (delayLabel) delayLabel.textContent = st === "IN_PROGRESS" ? "終了時刻の延長・短縮 (分)" : "開始時刻の前倒し・遅延 (分)";
   (["BEFORE", "IN_PROGRESS", "FINISHED"] as MatchStatus[]).forEach((s) => {
     const btn = document.getElementById(`statusBtn${s}`);
     if (!btn) return;
@@ -1472,7 +1478,9 @@ function saveModalData(): void {
   if (!m) return;
 
   const newOffset = parseInt((document.getElementById("inputDelayMinutes") as HTMLInputElement).value, 10) || 0;
-  const diff = newOffset - m.offsetMins;
+  const isInProgress = appState.selectedModalStatus === "IN_PROGRESS";
+  const oldOffset = isInProgress ? (m.endOffsetMins ?? 0) : m.offsetMins;
+  const diff = newOffset - oldOffset;
 
   m.status = appState.selectedModalStatus;
   const scoreA = (document.getElementById("inputModalScoreA") as HTMLInputElement).value;
@@ -1486,7 +1494,12 @@ function saveModalData(): void {
   m.staff = m.competitionLead;
   m.attendance = (document.getElementById("inputAttendance") as HTMLInputElement).value;
 
-  if (diff !== 0) {
+  if (diff !== 0 && isInProgress) {
+    m.endOffsetMins = newOffset;
+    saveState();
+    renderTimeline();
+    renderCourtDelaySummary();
+  } else if (diff !== 0) {
     applyCascadeOffset(m.id, diff);
   } else {
     saveState();
