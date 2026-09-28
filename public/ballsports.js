@@ -908,7 +908,7 @@ function createMatchItemHtml(m) {
         ? `<div class="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/20 p-3"><div class="text-[10px] font-black text-indigo-700 dark:text-indigo-300 mb-2">最終順位・得点入力</div><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${["A", "B", "C", "D"].map((team) => `<label class="text-[10px] font-bold text-slate-600 dark:text-slate-300">${team}組<select id="bracketRank_${m.id}_${team}" class="w-full mt-1 rounded-lg border border-indigo-300 dark:border-indigo-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-black"><option value="">順位</option>${[1, 2, 3, 4].map((rank) => `<option value="${rank}" ${m.rankByTeam?.[team] === rank ? "selected" : ""}>${rank}位</option>`).join("")}</select></label>`).join("")}</div><button onclick="event.stopPropagation(); saveBracketResults('${m.id}')" class="mt-2 w-full rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 text-xs font-black">対戦結果と順位を確定</button></div>`
         : "";
     const groupedCompetitionInputHtml = !SPORTS_PAGE_CONFIG.splitTeamBlocks && bracketGroups.length > 0
-        ? `<div class="rounded-xl border border-fuchsia-200 dark:border-fuchsia-900/60 bg-fuchsia-50/70 dark:bg-fuchsia-950/20 p-3"><div class="text-[10px] font-black text-fuchsia-700 dark:text-fuchsia-300 mb-2">グループ別入力: ${inputMode === "time" ? "タイム（分:秒）" : inputMode === "points" ? "点数" : inputMode === "win" ? "勝敗" : "順位"}</div>${bracketGroups.map((group) => `<div class="mb-2"><strong class="text-[10px]">${group}</strong><div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">${["A", "B", "C", "D"].map((team) => inputMode === "time" ? `<input id="groupValue_${m.id}_${group}_${team}" placeholder="${team} 01:23" class="rounded-lg border px-2 py-1.5 text-xs">` : inputMode === "points" ? `<input type="number" id="groupValue_${m.id}_${group}_${team}" placeholder="${team} 点" class="rounded-lg border px-2 py-1.5 text-xs">` : `<select id="groupRank_${m.id}_${group}_${team}" class="rounded-lg border px-2 py-1.5 text-xs"><option value="">${team} 順位</option>${[1, 2, 3, 4].map((rank) => `<option value="${rank}">${rank}位</option>`).join("")}</select>`).join("")}</div></div>`).join("")}<button onclick="event.stopPropagation(); saveCompetitionGroups('${m.id}')" class="w-full rounded-lg bg-fuchsia-600 text-white px-3 py-2 text-xs font-black">グループ結果を確定</button></div>`
+        ? `<div class="rounded-xl border border-fuchsia-200 dark:border-fuchsia-900/60 bg-fuchsia-50/70 dark:bg-fuchsia-950/20 p-3"><div class="text-[10px] font-black text-fuchsia-700 dark:text-fuchsia-300 mb-2">グループ別入力: ${inputMode === "time" ? "タイム（分:秒）" : inputMode === "points" ? "点数" : inputMode === "win" ? "勝敗" : "順位"}</div>${bracketGroups.map((group) => `<div class="mb-2"><strong class="text-[10px]">${group}</strong><div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">${["A", "B", "C", "D"].map((team) => inputMode === "time" ? `${renderMinuteSecondSelects(`groupValue_${m.id}_${group}_${team}`, "")}` : inputMode === "points" ? `<input type="number" id="groupValue_${m.id}_${group}_${team}" placeholder="${team} 点" class="rounded-lg border px-2 py-1.5 text-xs">` : `<select id="groupRank_${m.id}_${group}_${team}" class="rounded-lg border px-2 py-1.5 text-xs"><option value="">${team} 順位</option>${[1, 2, 3, 4].map((rank) => `<option value="${rank}">${rank}位</option>`).join("")}</select>`).join("")}</div></div>`).join("")}<button onclick="event.stopPropagation(); saveCompetitionGroups('${m.id}')" class="w-full rounded-lg bg-fuchsia-600 text-white px-3 py-2 text-xs font-black">グループ結果を確定</button></div>`
         : "";
     const groupedRankingHtml = false
         ? `<div class="rounded-xl border border-fuchsia-200 dark:border-fuchsia-900/60 bg-fuchsia-50/70 dark:bg-fuchsia-950/20 p-3"><div class="text-[10px] font-black text-fuchsia-700 dark:text-fuchsia-300 mb-2">学年・前後半別の順位と得点</div>${bracketGroups.map((group) => `<div class="mb-3 last:mb-0"><div class="text-[10px] font-black mb-1">${group}</div><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${["A", "B", "C", "D"].map((team) => `<label class="text-[10px] font-bold text-slate-600 dark:text-slate-300">${team}組<select id="groupRank_${m.id}_${group}_${team}" class="w-full mt-1 rounded-lg border border-fuchsia-300 dark:border-fuchsia-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-black"><option value="">順位</option>${[1, 2, 3, 4].map((rank) => `<option value="${rank}">${rank}位</option>`).join("")}</select></label>`).join("")}</div></div>`).join("")}<button onclick="event.stopPropagation(); saveBracketResults('${m.id}')" class="w-full rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-2 text-xs font-black">学年別順位を確定して得点反映</button></div>`
@@ -918,13 +918,13 @@ function createMatchItemHtml(m) {
         : "";
     const raceGroups = m.tournamentType === "race" ? getCompetitionGroups(m) : [];
     const groupedRaceRankingHtml = raceGroups.length > 0 && m.pointRule?.some((point) => point > 0)
-        ? `<div class="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-3"><div class="text-[10px] font-black text-emerald-700 dark:text-emerald-300 mb-2">グループ別タイム入力（分:秒）</div>${raceGroups.map((group) => `<div class="mb-3 last:mb-0"><div class="text-[10px] font-black mb-1">${group}</div><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${["A", "B", "C", "D"].map((team) => `<label class="text-[10px] font-bold text-slate-600 dark:text-slate-300">${team}組<input id="groupRaceTime_${m.id}_${group}_${team}" placeholder="例 01:23" inputmode="numeric" class="w-full mt-1 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-black"></label>`).join("")}</div></div>`).join("")}<button onclick="event.stopPropagation(); saveRaceRanking('${m.id}')" class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 text-xs font-black">グループ別タイムから得点反映</button></div>`
+        ? `<div class="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-3"><div class="text-[10px] font-black text-emerald-700 dark:text-emerald-300 mb-2">グループ別タイム入力（分:秒）</div>${raceGroups.map((group) => `<div class="mb-3 last:mb-0"><div class="text-[10px] font-black mb-1">${group}</div><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${["A", "B", "C", "D"].map((team) => `<label class="text-[10px] font-bold text-slate-600 dark:text-slate-300">${team}組${renderMinuteSecondSelects(`groupRaceTime_${m.id}_${group}_${team}`, "")}</label>`).join("")}</div></div>`).join("")}<button onclick="event.stopPropagation(); saveRaceRanking('${m.id}')" class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 text-xs font-black">グループ別タイムから得点反映</button></div>`
         : "";
     const rankRaceHtml = m.tournamentType === "race" && raceGroups.length === 0 && inputMode === "rank"
         ? `<div class="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 p-3"><div class="text-[10px] font-black mb-2">順位入力</div><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${["A", "B", "C", "D"].map((team) => `<select id="raceRank_${m.id}_${team}" class="rounded-lg border px-2 py-1.5 text-xs"><option value="">${team}組 順位</option>${[1, 2, 3, 4].map((rank) => `<option value="${rank}">${rank}位</option>`).join("")}</select>`).join("")}</div><button onclick="event.stopPropagation(); saveRaceRanking('${m.id}')" class="mt-2 w-full rounded-lg bg-indigo-600 text-white px-3 py-2 text-xs font-black">順位を確定して得点反映</button></div>`
         : "";
     const raceRankingHtml = m.tournamentType === "race" && raceGroups.length === 0 && inputMode !== "rank" && m.pointRule?.some((point) => point > 0)
-        ? `<div class="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-3"><div class="text-[10px] font-black text-emerald-700 dark:text-emerald-300 mb-2">4組同時順位入力（タイムは分:秒）</div><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${["A", "B", "C", "D"].map((team) => `<label class="text-[10px] font-bold text-slate-600 dark:text-slate-300">${team}組<input id="raceTime_${m.id}_${team}" value="${m.resultTimes?.[team] ?? ""}" placeholder="例 01:23" inputmode="numeric" class="w-full mt-1 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-black"></label>`).join("")}</div><button onclick="event.stopPropagation(); saveRaceRanking('${m.id}')" class="mt-2 w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 text-xs font-black">タイムから順位を確定して得点反映</button></div>`
+        ? `<div class="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-3"><div class="text-[10px] font-black text-emerald-700 dark:text-emerald-300 mb-2">4組同時順位入力（タイムは分:秒）</div><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${["A", "B", "C", "D"].map((team) => `<label class="text-[10px] font-bold text-slate-600 dark:text-slate-300">${team}組${renderMinuteSecondSelects(`raceTime_${m.id}_${team}`, m.resultTimes?.[team] ?? "")}</label>`).join("")}</div><button onclick="event.stopPropagation(); saveRaceRanking('${m.id}')" class="mt-2 w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 text-xs font-black">タイムから順位を確定して得点反映</button></div>`
         : "";
     const tournamentOrderHtml = Array.isArray(m.matchOrder) && m.matchOrder.length > 0
         ? `<div class="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 px-2.5 py-2 text-[10px] text-amber-800 dark:text-amber-200"><strong>対戦順・順位決定:</strong> ${m.matchOrder.map((order, index) => `<span class="inline-block mr-2">${index + 1}. ${formatVersus(order)}</span>`).join("")}</div>`
@@ -1040,7 +1040,7 @@ function saveRaceRanking(matchId) {
         const groupResults = {};
         const totalPoints = { A: 0, B: 0, C: 0, D: 0 };
         for (const group of raceGroups) {
-            const times = Object.fromEntries(teams.map((team) => [team, document.getElementById(`groupRaceTime_${matchId}_${group}_${team}`)?.value.trim() ?? ""]));
+            const times = Object.fromEntries(teams.map((team) => [team, readMinuteSecondSelects(`groupRaceTime_${matchId}_${group}_${team}`)]));
             const seconds = Object.fromEntries(teams.map((team) => { const parsed = /^([0-9]+):([0-5][0-9])$/.exec(times[team]); return [team, parsed ? Number(parsed[1]) * 60 + Number(parsed[2]) : NaN]; }));
             if (Object.values(seconds).some((value) => !Number.isFinite(value))) {
                 alert(`${group}のA〜D組すべてに分:秒形式のタイムを入力してください。`);
@@ -1062,7 +1062,7 @@ function saveRaceRanking(matchId) {
         calculateScoresAndRanks();
         return;
     }
-    const resultTimes = Object.fromEntries(teams.map((team) => [team, document.getElementById(`raceTime_${matchId}_${team}`)?.value.trim() ?? ""]));
+    const resultTimes = Object.fromEntries(teams.map((team) => [team, readMinuteSecondSelects(`raceTime_${matchId}_${team}`)]));
     const timeValues = teams.map((team) => { const match = /^([0-9]+):([0-5][0-9])$/.exec(resultTimes[team]); return match ? Number(match[1]) * 60 + Number(match[2]) : NaN; });
     const ranking = timeValues.every(Number.isFinite) ? [...teams].sort((a, b) => timeValues[teams.indexOf(a)] - timeValues[teams.indexOf(b)]) : [];
     if (ranking.length !== 4) {
@@ -1120,7 +1120,7 @@ function saveCompetitionGroups(matchId) {
     for (const group of groups) {
         let ranking;
         if (mode === "time") {
-            const values = Object.fromEntries(["A", "B", "C", "D"].map((team) => [team, document.getElementById(`groupValue_${matchId}_${group}_${team}`)?.value.trim() ?? ""]));
+            const values = Object.fromEntries(["A", "B", "C", "D"].map((team) => [team, readMinuteSecondSelects(`groupValue_${matchId}_${group}_${team}`)]));
             const seconds = Object.fromEntries(Object.entries(values).map(([team, value]) => { const parsed = /^([0-9]+):([0-5][0-9])$/.exec(value); return [team, parsed ? Number(parsed[1]) * 60 + Number(parsed[2]) : NaN]; }));
             if (Object.values(seconds).some((value) => !Number.isFinite(value))) { alert(`${group}のタイムを分:秒で入力してください。`); return; }
             ranking = Object.keys(seconds).sort((a, b) => seconds[a] - seconds[b]);
@@ -2109,6 +2109,19 @@ function getTeamCardDefaultMode(sport) {
     if (["大玉送り", "台風の目", "二人三脚", "選抜リレー"].includes(sport)) return "time";
     return "winner";
 }
+function renderMinuteSecondSelects(id, value = "", attributes = "") {
+    const parsed = /^([0-9]{1,2}):([0-5][0-9])$/.exec(String(value ?? ""));
+    const minute = parsed ? Math.min(10, Math.max(0, Number(parsed[1]))) : null;
+    const second = parsed ? Number(parsed[2]) : null;
+    const options = (max, selected, pad = false) => `<option value="" ${selected === null ? "selected" : ""} disabled>選択</option>${Array.from({ length: max + 1 }, (_, number) => `<option value="${pad ? String(number).padStart(2, "0") : number}" ${number === selected ? "selected" : ""}>${pad ? String(number).padStart(2, "0") : number}</option>`).join("")}`;
+    return `<span class="flex items-center gap-1 mt-1"><select id="${id}_minute" ${attributes} data-time-part="minute" class="rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900">${options(10, minute)}</select><span class="font-bold">分</span><select id="${id}_second" ${attributes} data-time-part="second" class="rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900">${options(59, second, true)}</select><span class="font-bold">秒</span></span>`;
+}
+function readMinuteSecondSelects(id) {
+    const minute = document.getElementById(`${id}_minute`)?.value ?? "0";
+    const second = document.getElementById(`${id}_second`)?.value ?? "00";
+    if (minute === "" || second === "") return "";
+    return `${Number(minute)}:${String(second).padStart(2, "0")}`;
+}
 function renderTeamMatchCardEditor() {
     const matchId = document.getElementById("modalMatchId")?.value;
     const match = appState.schedule.find((item) => item.id === matchId);
@@ -2116,16 +2129,18 @@ function renderTeamMatchCardEditor() {
     if (!match || !editor)
         return;
     const drafts = {};
-    editor.querySelectorAll("[data-card-result-mode], [data-card-score], [data-card-winner], [data-card-race-time], [data-card-start], [data-card-end]").forEach((input) => {
-        const index = Number(input.dataset.cardResultMode ?? input.dataset.cardScore ?? input.dataset.cardWinner ?? input.dataset.cardRaceTime ?? input.dataset.cardStart ?? input.dataset.cardEnd);
+    editor.querySelectorAll("[data-card-result-mode], [data-card-score], [data-card-winner], [data-card-race-time], [data-card-race-minute], [data-card-race-second], [data-card-start], [data-card-end]").forEach((input) => {
+        const index = Number(input.dataset.cardResultMode ?? input.dataset.cardScore ?? input.dataset.cardWinner ?? input.dataset.cardRaceTime ?? input.dataset.cardRaceMinute ?? input.dataset.cardRaceSecond ?? input.dataset.cardStart ?? input.dataset.cardEnd);
         drafts[index] ??= { scores: {}, times: {} };
         if (input.hasAttribute("data-card-result-mode")) drafts[index].mode = input.value;
         if (input.hasAttribute("data-card-score")) drafts[index].scores[input.dataset.team] = input.value;
         if (input.hasAttribute("data-card-winner")) drafts[index].winner = input.value;
-        if (input.hasAttribute("data-card-race-time")) { drafts[index].timesByTeam ??= {}; drafts[index].timesByTeam[input.dataset.team] = input.value; }
+        if (input.hasAttribute("data-card-race-time")) { drafts[index].raceParts ??= {}; drafts[index].raceParts[input.dataset.team] ??= { minute: "0", second: "00" }; drafts[index].raceParts[input.dataset.team][input.dataset.timePart] = input.value; }
+        if (input.hasAttribute("data-card-race-minute") || input.hasAttribute("data-card-race-second")) { drafts[index].raceParts ??= {}; drafts[index].raceParts[input.dataset.team] ??= { minute: "0", second: "00" }; drafts[index].raceParts[input.dataset.team][input.dataset.timePart] = input.value; }
         if (input.hasAttribute("data-card-start")) drafts[index].times.start = input.value;
         if (input.hasAttribute("data-card-end")) drafts[index].times.end = input.value;
     });
+    Object.values(drafts).forEach((draft) => Object.entries(draft.raceParts ?? {}).forEach(([team, parts]) => { draft.timesByTeam ??= {}; draft.timesByTeam[team] = parts.minute !== "" && parts.second !== "" ? `${Number(parts.minute)}:${String(parts.second).padStart(2, "0")}` : ""; }));
     editor.innerHTML = `<div class="font-bold text-slate-700 dark:text-slate-300">試合ごとの結果・時間</div>${(match.matchCards ?? []).map((card, index) => {
         const teams = (card.teams?.length ? card.teams : String(card.order ?? "A/B").split(/[\/・,、]/).filter((team) => /^[A-D]$/.test(team.trim())).map((team) => team.trim())).map((team) => resolveTeamParticipant(match, team));
         const mode = drafts[index]?.mode ?? card.resultMode ?? getTeamCardDefaultMode(match.sport);
@@ -2139,7 +2154,7 @@ function renderTeamMatchCardEditor() {
               <option value="winner" ${mode === "winner" ? "selected" : ""}>勝者を選択</option><option value="points" ${mode === "points" ? "selected" : ""}>点数で決定</option><option value="time" ${mode === "time" ? "selected" : ""}>タイムで決定</option>
             </select>
           </label>
-          ${mode === "points" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} 点数<input type="number" min="0" max="${match.sport === "竹取物語" ? 150 : match.sport === "しっぽとり" ? 100 : ""}" step="${match.sport === "竹取物語" ? 10 : 1}" data-card-score="${index}" data-team="${team}" value="${drafts[index]?.scores[team] ?? score[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : mode === "time" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} タイム<input type="text" inputmode="numeric" placeholder="分:秒" data-card-race-time="${index}" data-team="${team}" value="${drafts[index]?.timesByTeam?.[team] ?? match.cardRaceTimes?.[index]?.[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : `<label class="block text-[10px] font-bold text-slate-500">勝者<select data-card-winner="${index}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold dark:bg-slate-900"><option value="">未入力</option>${teams.map((team) => `<option value="${team}" ${(drafts[index]?.winner ?? match.cardResults?.[index]) === team ? "selected" : ""}>${team} 勝利</option>`).join("")}</select></label>`}
+          ${mode === "points" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} 点数<input type="number" min="0" max="${match.sport === "竹取物語" ? 150 : match.sport === "しっぽとり" ? 100 : ""}" step="${match.sport === "竹取物語" ? 10 : 1}" data-card-score="${index}" data-team="${team}" value="${drafts[index]?.scores[team] ?? score[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : mode === "time" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} タイム${renderMinuteSecondSelects(`cardRaceTime_${index}_${team}`, drafts[index]?.timesByTeam?.[team] ?? match.cardRaceTimes?.[index]?.[team] ?? "", `data-card-race-time="${index}" data-team="${team}"`)}</label>`).join("")}</div>` : `<label class="block text-[10px] font-bold text-slate-500">勝者<select data-card-winner="${index}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold dark:bg-slate-900"><option value="">未入力</option>${teams.map((team) => `<option value="${team}" ${(drafts[index]?.winner ?? match.cardResults?.[index]) === team ? "selected" : ""}>${team} 勝利</option>`).join("")}</select></label>`}
           <div class="grid grid-cols-2 gap-2"><label class="text-[10px] font-bold text-slate-500">開始<input type="time" data-card-start="${index}" value="${drafts[index]?.times.start ?? cardTime.start ?? match.start ?? "08:00"}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 dark:bg-slate-900"></label><label class="text-[10px] font-bold text-slate-500">終了<input type="time" data-card-end="${index}" value="${drafts[index]?.times.end ?? cardTime.end ?? match.end ?? "08:30"}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 dark:bg-slate-900"></label></div>
         </section>`;
     }).join("")}`;
@@ -2148,6 +2163,7 @@ function openModal(matchId) {
     const m = appState.schedule.find((item) => item.id === matchId);
     if (!m)
         return;
+    appState.modalReturnTab = document.querySelector("main > section:not(.hidden)")?.id?.replace(/^sec-/, "") ?? "timeline";
     document.getElementById("modalMatchId").value = m.id;
     document.getElementById("modalMatchDetail").innerText = `${m.title} (${m.grade} ${m.sport})`;
     document.getElementById("modalCourtDetail").innerText = `場所: ${m.court}`;
@@ -2174,6 +2190,11 @@ function openModal(matchId) {
 }
 function closeModal() {
     document.getElementById("editModal")?.classList.add("hidden");
+    if (appState.modalReturnTab) {
+        const returnTab = appState.modalReturnTab;
+        appState.modalReturnTab = "";
+        switchTab(returnTab);
+    }
 }
 function setModalStatus(st) {
     appState.selectedModalStatus = st;
@@ -2245,7 +2266,7 @@ function saveModalData() {
                 }
             }
             else if (mode === "time") {
-                const raceTimes = Object.fromEntries(teams.map((team) => [team, document.querySelector(`[data-card-race-time="${index}"][data-team="${team}"]`)?.value.trim() ?? ""]));
+                const raceTimes = Object.fromEntries(teams.map((team) => [team, readMinuteSecondSelects(`cardRaceTime_${index}_${team}`)]));
                 const seconds = Object.fromEntries(teams.map((team) => { const parsed = /^([0-9]+):([0-5][0-9])$/.exec(raceTimes[team]); return [team, parsed ? Number(parsed[1]) * 60 + Number(parsed[2]) : NaN]; }));
                 m.cardRaceTimes[index] = raceTimes;
                 const ranked = teams.filter((team) => /^[A-D]$/.test(team) && Number.isFinite(seconds[team])).sort((a, b) => seconds[a] - seconds[b]);
