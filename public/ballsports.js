@@ -2071,6 +2071,18 @@ function createCompetitionBlock() {
 }
 function resolveTeamParticipant(match, team) {
     const label = String(team ?? "");
+    if (match.sport === "竹取物語") {
+        const h1Winner = /^WINNER_H1_([12])$/.exec(label);
+        const otherWinner = /^(前半|後半)第([12])試合勝者$/.exec(label);
+        if (h1Winner || otherWinner) {
+            const group = h1Winner ? "H1" : otherWinner[1] === "前半" ? "H2・H3前半" : "H2・H3後半";
+            const roundIndex = Number(h1Winner ? h1Winner[1] : otherWinner[2]) - 1;
+            const competitionId = match.competitionId ?? match.parentBlockId ?? match.blockId;
+            const siblings = appState.schedule.filter((item) => item.sport === match.sport && (item.competitionId ?? item.parentBlockId ?? item.blockId) === competitionId);
+            const source = siblings.find((item) => item.grade === group && item.matchCardIndex === roundIndex);
+            return source?.cardResults?.[0] ?? (roundIndex === 0 ? "第一試合勝者（未確定）" : "第二試合勝者（未確定）");
+        }
+    }
     if (match.sport === "竹取物語" && /(?:前半|後半)第[12]試合勝者/.test(label)) {
         const group = label.startsWith("前半") ? "H2・H3前半" : "H2・H3後半";
         const round = label.includes("第1試合") ? "第1試合" : "第2試合";
@@ -2108,6 +2120,12 @@ function getTeamCardDefaultMode(sport) {
     if (["竹取物語", "しっぽとり", "100人フットボール"].includes(sport)) return "points";
     if (["大玉送り", "台風の目", "二人三脚", "選抜リレー"].includes(sport)) return "time";
     return "winner";
+}
+function getTeamPointRange(sport) {
+    if (sport === "竹取物語") return { min: 0, max: 200, step: 10 };
+    if (sport === "しっぽとり") return { min: 1, max: 60, step: 1 };
+    if (sport === "100人フットボール") return { min: 1, max: 10, step: 1 };
+    return { min: 0, max: "", step: 1 };
 }
 function renderMinuteSecondSelects(id, value = "", attributes = "") {
     const parsed = /^([0-9]{1,2}):([0-5][0-9])$/.exec(String(value ?? ""));
@@ -2154,7 +2172,7 @@ function renderTeamMatchCardEditor() {
               <option value="winner" ${mode === "winner" ? "selected" : ""}>勝者を選択</option><option value="points" ${mode === "points" ? "selected" : ""}>点数で決定</option><option value="time" ${mode === "time" ? "selected" : ""}>タイムで決定</option>
             </select>
           </label>
-          ${mode === "points" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} 点数<input type="number" min="0" max="${match.sport === "竹取物語" ? 150 : match.sport === "しっぽとり" ? 100 : ""}" step="${match.sport === "竹取物語" ? 10 : 1}" data-card-score="${index}" data-team="${team}" value="${drafts[index]?.scores[team] ?? score[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : mode === "time" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} タイム${renderMinuteSecondSelects(`cardRaceTime_${index}_${team}`, drafts[index]?.timesByTeam?.[team] ?? match.cardRaceTimes?.[index]?.[team] ?? "", `data-card-race-time="${index}" data-team="${team}"`)}</label>`).join("")}</div>` : `<label class="block text-[10px] font-bold text-slate-500">勝者<select data-card-winner="${index}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold dark:bg-slate-900"><option value="">未入力</option>${teams.map((team) => `<option value="${team}" ${(drafts[index]?.winner ?? match.cardResults?.[index]) === team ? "selected" : ""}>${team} 勝利</option>`).join("")}</select></label>`}
+          ${mode === "points" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} 点数<input type="number" min="${getTeamPointRange(match.sport).min}" max="${getTeamPointRange(match.sport).max}" step="${getTeamPointRange(match.sport).step}" data-card-score="${index}" data-team="${team}" value="${drafts[index]?.scores[team] ?? score[team] ?? ""}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-black dark:bg-slate-900"></label>`).join("")}</div>` : mode === "time" ? `<div class="grid grid-cols-2 gap-2">${teams.map((team) => `<label class="text-[10px] font-bold text-slate-500">${team} タイム${renderMinuteSecondSelects(`cardRaceTime_${index}_${team}`, drafts[index]?.timesByTeam?.[team] ?? match.cardRaceTimes?.[index]?.[team] ?? "", `data-card-race-time="${index}" data-team="${team}"`)}</label>`).join("")}</div>` : `<label class="block text-[10px] font-bold text-slate-500">勝者<select data-card-winner="${index}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-bold dark:bg-slate-900"><option value="">未入力</option>${teams.map((team) => `<option value="${team}" ${(drafts[index]?.winner ?? match.cardResults?.[index]) === team ? "selected" : ""}>${team} 勝利</option>`).join("")}</select></label>`}
           <div class="grid grid-cols-2 gap-2"><label class="text-[10px] font-bold text-slate-500">開始<input type="time" data-card-start="${index}" value="${drafts[index]?.times.start ?? cardTime.start ?? match.start ?? "08:00"}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 dark:bg-slate-900"></label><label class="text-[10px] font-bold text-slate-500">終了<input type="time" data-card-end="${index}" value="${drafts[index]?.times.end ?? cardTime.end ?? match.end ?? "08:30"}" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 dark:bg-slate-900"></label></div>
         </section>`;
     }).join("")}`;
@@ -2251,10 +2269,9 @@ function saveModalData() {
                 const scores = Object.fromEntries(teams.map((team) => { const value = document.querySelector(`[data-card-score="${index}"][data-team="${team}"]`)?.value ?? ""; return [team, value === "" ? NaN : Number(value)]; }));
                 m.cardScores[index] = scores;
                 const entered = Object.entries(scores).filter(([, score]) => Number.isFinite(score));
-                const maxScore = m.sport === "竹取物語" ? 150 : m.sport === "しっぽとり" ? 100 : Infinity;
-                const scoreStep = m.sport === "竹取物語" ? 10 : 1;
-                if (entered.some(([, score]) => score < 0 || score > maxScore || score % scoreStep !== 0)) {
-                    alert(m.sport === "竹取物語" ? "竹取物語は10点刻みで150点まで入力してください。" : "しっぽとりは0〜100点で入力してください。");
+                const pointRange = getTeamPointRange(m.sport);
+                if (entered.some(([, score]) => score < pointRange.min || (pointRange.max !== "" && score > pointRange.max) || (score - pointRange.min) % pointRange.step !== 0)) {
+                    alert(`${m.sport}の得点は${pointRange.min}〜${pointRange.max}点、${pointRange.step}点刻みで入力してください。`);
                     return;
                 }
                 const highScore = Math.max(...entered.map(([, score]) => score));
