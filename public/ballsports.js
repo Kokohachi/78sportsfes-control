@@ -277,8 +277,10 @@ function loadPersistedSchedule() {
         if (!raw)
             return cloneInitialSchedule();
         const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed) || parsed.length === 0)
+        if (!Array.isArray(parsed))
             return cloneInitialSchedule();
+        if (parsed.length === 0)
+            return [];
         const normalized = mergeTeamScheduleDefaults(parsed
             .map((entry) => normalizeScheduleEntry(entry))
             .filter((entry) => entry !== null && entry !== undefined));
@@ -450,14 +452,12 @@ function normalizeRemoteAnnouncement(data) {
 }
 function applyRemoteDocumentData(data) {
     const remoteSchedule = extractRemoteSchedule(data);
-    if (!remoteSchedule || !Array.isArray(remoteSchedule) || remoteSchedule.length === 0) {
+    if (!remoteSchedule || !Array.isArray(remoteSchedule)) {
         console.warn("[同期] 有効なスケジュールなし");
-        if (!appState.schedule || appState.schedule.length === 0)
-            appState.schedule = INITIAL_SCHEDULE;
         return false;
     }
     const expectedSports = SPORTS_PAGE_CONFIG.expectedSports;
-    if (Array.isArray(expectedSports) && expectedSports.length > 0) {
+    if (remoteSchedule.length > 0 && Array.isArray(expectedSports) && expectedSports.length > 0) {
         const hasExpectedEvent = remoteSchedule.some((entry) => expectedSports.includes(entry.sport ?? entry.name ?? entry.title));
         if (!hasExpectedEvent) {
             console.warn("[同期] ページ種別に合わないスケジュールを無視");
