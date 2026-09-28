@@ -6,6 +6,9 @@
   <meta name="robots" content="noindex,nofollow">
   <title>生徒照会｜第78回体育祭</title>
   <link rel="stylesheet" href="./student-search.css">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script defer src="./vendor/xlsx.full.min.js"></script>
   <script defer src="./student-search.js"></script>
 </head>
@@ -20,14 +23,10 @@
     <section id="unlockPanel" class="panel access-panel">
       <p class="eyebrow">PRIVATE DIRECTORY</p>
       <h1>生徒照会</h1>
-      <p class="muted">この画面は端末内のデータだけを検索します。生徒名簿は暗号化してこのブラウザーに保存されます。</p>
-      <form id="unlockForm">
-        <label for="accessPassword">照会パスワード</label>
-        <input id="accessPassword" type="password" autocomplete="current-password" required>
-        <button class="button button-primary" type="submit">ロック解除</button>
-      </form>
+      <p class="muted">許可された学校Googleアカウントでログインすると、複数の端末から同じ名簿を参照できます。</p>
+      <button id="googleLoginButton" class="button button-primary" type="button">学校Googleアカウントでログイン</button>
       <p id="unlockMessage" class="message" role="status"></p>
-      <p class="privacy-note">名簿データはFirebaseや外部サービスへ送信しません。共有端末では利用後に必ずロックしてください。</p>
+      <p class="privacy-note">名簿はFirebase上に保存されます。アクセスは許可アカウントに制限し、共有端末では利用後にログアウトしてください。</p>
     </section>
 
     <section id="directoryPanel" class="hidden">
@@ -46,7 +45,7 @@
           <button id="cancelImport" class="button button-quiet" type="button">キャンセル</button>
         </div>
         <p id="importStatus" class="message" role="status">ExcelまたはCSVを選択してください。列名を自動認識し、追加列もそのまま取り込みます。</p>
-        <p class="privacy-note">パスワード付きExcelはこのブラウザーでは読み込めません。Excelで開き、ローカルでCSV UTF-8またはパスワードなしの.xlsxとして保存してから選択してください。変換ファイルも外部へ送信されません。</p>
+        <p class="privacy-note">取り込んだ名簿はFirebaseへ送信され、許可されたアカウントから参照できるようになります。</p>
       </section>
 
       <section class="panel search-panel">

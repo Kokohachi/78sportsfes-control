@@ -1,0 +1,16 @@
+// Add this match block inside the existing
+// service cloud.firestore { match /databases/{database}/documents { ... }
+// Do not deploy this fragment as a replacement for the project's full rules.
+match /student_directory/current {
+  allow read: if request.auth != null
+    && request.auth.token.email_verified == true
+    && request.auth.token.email == 'jh62231310@s.musashi.ed.jp';
+  allow create, update: if request.auth != null
+    && request.auth.token.email_verified == true
+    && request.auth.token.email == 'jh62231310@s.musashi.ed.jp'
+    && request.resource.data.rows is list
+    && request.resource.data.fields is list
+    && request.resource.data.updatedBy == request.auth.token.email
+    && request.resource.data.keys().hasOnly(['rows', 'fields', 'updatedAt', 'updatedBy']);
+  allow delete: if false;
+}

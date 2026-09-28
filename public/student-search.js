@@ -1,39 +1,44 @@
 (() => {
   "use strict";
 
-  const STORE_KEY = "gym78_student_directory_encrypted_v1";
-  const PBKDF2_SALT = "iJSecYXaw1RlynAHfyM4kA==";
-  const EXPECTED_KEY = "8r8vQqiBEOFzp7c/zSQ8wWV7HwLUZaUUXJQH/+JsGKk=";
-  const ITERATIONS = 310000;
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAwVUxoXbvTraGUDoLztqqcJx2fIHqUntc",
+    authDomain: "thsportsfes.firebaseapp.com",
+    databaseURL: "https://thsportsfes-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "thsportsfes",
+    storageBucket: "thsportsfes.firebasestorage.app",
+    messagingSenderId: "96596815858",
+    appId: "1:96596815858:web:5f85526bf785ccc5d8056b",
+    measurementId: "G-TCPMRTY3P1"
+  };
+  const AUTHORIZED_EMAIL = "jh62231310@s.musashi.ed.jp";
+  // Enable only after merging the matching rule into Firebase Console and checking for broad wildcard grants.
+  const FIRESTORE_RULES_READY = false;
+  const DIRECTORY_DOC = "student_directory/current";
+  const MAX_DIRECTORY_BYTES = 850_000;
   const ID_HINT = /4桁番号|学籍番号|生徒番号|個人番号|student.?id|^id$/i;
   const SENSITIVE_HINT = /mail|メール|電話|phone|住所|address/i;
   const SPORT_HINT = /球技|競技|種目|sport/i;
-  const state = { key: null, rows: [], fields: [], filters: {}, staged: null, lockTimer: 0 };
+  const state = { rows: [], fields: [], filters: {}, staged: null, lockTimer: 0, db: null, auth: null, user: null, unsubscribe: null };
   const $ = (id) => document.getElementById(id);
 
   const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const fromBase64 = (value) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
-  const toBase64 = (value) => btoa(String.fromCharCode(...new Uint8Array(value)));
-
-  async function deriveKey(password) {
-    const material = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: fromBase64(PBKDF2_SALT), iterations: ITERATIONS, hash: "SHA-256" }, material, 256);
-    return new Uint8Array(bits);
-  }
-
-  async function unlock(password) {
-    const rawKey = await deriveKey(password);
-    if (toBase64(rawKey) !== EXPECTED_KEY) throw new Error("パスワードを確認してください。");
-    state.key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
-    const saved = localStorage.getItem(STORE_KEY);
-    if (saved) {
-      const encrypted = JSON.parse(saved);
-      const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromBase64(encrypted.iv) }, state.key, fromBase64(encrypted.data));
-      const payload = JSON.parse(decoder.decode(clear));
-      state.rows = payload.rows ?? [];
-      state.fields = payload.fields ?? [];
-    }
+  async function loadCloudDirectory() {
+    state.unsubscribe?.();
+    await new Promise((resolve, reject) => {
+      let initialSnapshot = true;
+      state.unsubscribe = state.db.doc(DIRECTORY_DOC).onSnapshot((snapshot) => {
+        const payload = snapshot.exists ? snapshot.data() : {};
+        state.rows = Array.isArray(payload.rows) ? payload.rows : [];
+        state.fields = Array.isArray(payload.fields) ? payload.fields : [];
+        renderDirectory();
+        if (initialSnapshot) resolve();
+        initialSnapshot = false;
+      }, (error) => {
+        if (initialSnapshot) reject(error);
+        else setMessage("importStatus", "共有名簿との接続が切れました。再読み込みしてください。", true);
+      });
+    });
     $("unlockPanel").classList.add("hidden");
     $("directoryPanel").classList.remove("hidden");
     $("lockButton").classList.remove("hidden");
@@ -42,31 +47,36 @@
   }
 
   async function persist() {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const clear = encoder.encode(JSON.stringify({ rows: state.rows, fields: state.fields }));
-    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, state.key, clear);
-    localStorage.setItem(STORE_KEY, JSON.stringify({ version: 1, iv: toBase64(iv), data: toBase64(encrypted) }));
+    const payload = { rows: state.rows, fields: state.fields };
+    const bytes = encoder.encode(JSON.stringify(payload)).length;
+    if (bytes > MAX_DIRECTORY_BYTES) throw new Error("名簿が大きすぎます。項目を整理してから再度お試しください。");
+    await state.db.doc(DIRECTORY_DOC).set({
+      ...payload,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: state.user.email
+    });
   }
 
-  function lock() {
+  async function lock() {
     clearTimeout(state.lockTimer);
-    state.key = null;
+    state.unsubscribe?.();
+    state.unsubscribe = null;
     state.rows = [];
     state.fields = [];
     state.staged = null;
     $("directoryPanel").classList.add("hidden");
     $("lockButton").classList.add("hidden");
     $("unlockPanel").classList.remove("hidden");
-    $("accessPassword").value = "";
     $("unlockMessage").textContent = "ロックしました。";
     $("results").replaceChildren();
     $("query").value = "";
     state.filters = {};
+    if (state.auth?.currentUser) await state.auth.signOut();
   }
 
   function resetLockTimer() {
     clearTimeout(state.lockTimer);
-    state.lockTimer = setTimeout(lock, 15 * 60 * 1000);
+    state.lockTimer = setTimeout(() => lock(), 15 * 60 * 1000);
   }
 
   function parseCsv(text) {
@@ -140,6 +150,8 @@
     const mode = $("importMode").value;
     const keyField = $("keyField").value;
     if (mode === "merge" && !keyField) return setMessage("importStatus", "照合キーを選択してください。", true);
+    const previousRows = state.rows;
+    const previousFields = state.fields;
     if (mode === "merge") {
       const byKey = new Map(state.rows.map((record) => [String(record[keyField] ?? "").trim(), record]).filter(([key]) => key));
       sheet.records.forEach((incoming) => {
@@ -153,11 +165,17 @@
       state.rows = sheet.records;
       state.fields = sheet.headers;
     }
-    await persist();
+    try {
+      await persist();
+    } catch (error) {
+      state.rows = previousRows;
+      state.fields = previousFields;
+      throw error;
+    }
     $("importOptions").classList.add("hidden");
     $("importFile").value = "";
     state.staged = null;
-    $("importStatus").textContent = `${sheet.records.length.toLocaleString()}人分を端末内に暗号化して保存しました。`;
+    $("importStatus").textContent = `${state.rows.length.toLocaleString()}人分を共有名簿へ保存しました。`;
     renderDirectory();
   }
 
@@ -168,7 +186,7 @@
   }
 
   function renderDirectory() {
-    $("datasetSummary").textContent = state.rows.length ? `${state.rows.length.toLocaleString()}人 / ${state.fields.length}項目　（このブラウザー内に暗号化保存）` : "名簿はまだありません。ExcelまたはCSVを選択して読み込んでください。";
+    $("datasetSummary").textContent = state.rows.length ? `${state.rows.length.toLocaleString()}人 / ${state.fields.length}項目　（共有名簿）` : "名簿はまだありません。ExcelまたはCSVを選択して読み込んでください。";
     renderFilters();
     renderExportFields();
     renderResults();
@@ -275,15 +293,59 @@
     resetLockTimer();
   }
 
-  $("unlockForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
+  async function signIn() {
     try {
-      await unlock($("accessPassword").value);
-      $("unlockMessage").textContent = "";
-    } catch {
-      setMessage("unlockMessage", "パスワードが違うか、保存データを復号できません。", true);
+      await state.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    } catch (error) {
+      const message = error.code === "auth/popup-blocked" ? "ポップアップがブロックされました。ブラウザーで許可してください。" : "Googleログインに失敗しました。ページを再読み込みしてお試しください。";
+      setMessage("unlockMessage", message, true);
     }
-  });
+  }
+
+  try {
+    if (!FIRESTORE_RULES_READY) {
+      setMessage("unlockMessage", "FirebaseのFirestoreルール設定が未確認のため、生徒照会を停止しています。設定手順は firebase/student-directory.rules.fragment を確認してください。", true);
+      $("googleLoginButton").disabled = true;
+      return;
+    }
+    const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
+    state.auth = firebase.auth(app);
+    state.db = firebase.firestore(app);
+    $("googleLoginButton").addEventListener("click", signIn);
+    state.auth.onAuthStateChanged(async (user) => {
+      clearTimeout(state.lockTimer);
+      state.user = user;
+      if (!user) {
+        state.rows = [];
+        state.fields = [];
+        $("directoryPanel").classList.add("hidden");
+        $("unlockPanel").classList.remove("hidden");
+        $("lockButton").classList.add("hidden");
+        $("results").replaceChildren();
+        return;
+      }
+      if (!user.emailVerified || user.email?.toLowerCase() !== AUTHORIZED_EMAIL) {
+        setMessage("unlockMessage", `このページを利用できるのは許可されたGoogleアカウントのみです。現在のアカウント: ${user.email ?? "不明"}`, true);
+        await state.auth.signOut();
+        return;
+      }
+      try {
+        setMessage("unlockMessage", "共有名簿を読み込んでいます…");
+        await loadCloudDirectory();
+        $("unlockMessage").textContent = "";
+      } catch (error) {
+        $("directoryPanel").classList.add("hidden");
+        $("unlockPanel").classList.remove("hidden");
+        const message = error.code === "permission-denied"
+          ? "Firebaseの読み取りルールで拒否されました。Firestoreルールを設定してから再度お試しください。"
+          : "共有名簿を読み込めませんでした。ネットワークとFirebase設定を確認してください。";
+        setMessage("unlockMessage", message, true);
+      }
+    });
+  } catch (error) {
+    setMessage("unlockMessage", "Firebaseを初期化できませんでした。ネットワーク接続を確認してください。", true);
+    $("googleLoginButton").disabled = true;
+  }
   $("importFile").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -297,10 +359,10 @@
   });
   $("sheetSelect").addEventListener("change", updateImportKeyOptions);
   $("importMode").addEventListener("change", () => $("keyField").closest("label").classList.toggle("hidden", $("importMode").value !== "merge"));
-  $("confirmImport").addEventListener("click", () => commitImport().catch(() => setMessage("importStatus", "保存できませんでした。空き容量を確認してください。", true)));
+  $("confirmImport").addEventListener("click", () => commitImport().catch((error) => setMessage("importStatus", error.message || "Firebaseへの保存に失敗しました。アクセスルールと接続を確認してください。", true)));
   $("cancelImport").addEventListener("click", () => { state.staged = null; $("importOptions").classList.add("hidden"); $("importFile").value = ""; });
   $("query").addEventListener("input", () => { renderResults(); resetLockTimer(); });
   $("exportButton").addEventListener("click", exportCsv);
-  $("lockButton").addEventListener("click", lock);
-  ["pointerdown", "keydown"].forEach((eventName) => document.addEventListener(eventName, () => { if (state.key) resetLockTimer(); }, { passive: true }));
+  $("lockButton").addEventListener("click", () => lock());
+  ["pointerdown", "keydown"].forEach((eventName) => document.addEventListener(eventName, () => { if (state.user) resetLockTimer(); }, { passive: true }));
 })();
