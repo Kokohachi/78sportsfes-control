@@ -796,6 +796,11 @@
             { label: "A 対 B", group: "大玉送り", order: "A/B", teams: ["A", "B"], resultMode: "time" },
             { label: "C 対 D", group: "大玉送り", order: "C/D", teams: ["C", "D"], resultMode: "time" }
         ] });
+        event("team_02").matchCards.push({ label: "H1 決勝", group: "H1", order: "A/B/C/D", teams: ["A", "B", "C", "D"], resultMode: "points" });
+        event("team_02").matchCards.push(
+            { label: "H2・H3 前半 決勝", group: "H2・H3前半", order: "前半第1試合勝者/前半第2試合勝者", teams: ["前半第1試合勝者", "前半第2試合勝者"], resultMode: "points" },
+            { label: "H2・H3 後半 決勝", group: "H2・H3後半", order: "後半第1試合勝者/後半第2試合勝者", teams: ["後半第1試合勝者", "後半第2試合勝者"], resultMode: "points" }
+        );
         configure("team_03", { matchCards: [
             { label: "J1・J3 前半1位", group: "J1・J3前半", order: "A/B/C/D 順位決定", teams: ["A", "B", "C", "D"], resultMode: "time" },
             { label: "J1・J3 後半1位", group: "J1・J3後半", order: "A/B/C/D 順位決定", teams: ["A", "B", "C", "D"], resultMode: "time" },

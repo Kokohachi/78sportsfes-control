@@ -1345,6 +1345,20 @@ function applyCascadeOffset(targetMatchId, diffMins) {
 function renderGantt() {
     const container = document.getElementById("ganttContainer");
     const courts = getSelectedGanttCourts();
+    if (SPORTS_PAGE_CONFIG.splitTeamBlocks) {
+        const matches = appState.schedule.filter((match) => courts.includes(match.court)).sort((a, b) => calcAdjustedTime(a.start, a.offsetMins).localeCompare(calcAdjustedTime(b.start, b.offsetMins)));
+        container.className = "team-day-timetable";
+        container.innerHTML = matches.map((match, index) => {
+            const start = calcAdjustedTime(match.start, match.offsetMins);
+            const end = calcAdjustedTime(match.end, match.offsetMins + (match.endOffsetMins ?? 0));
+            const status = match.status === "FINISHED" ? "完了" : match.status === "IN_PROGRESS" ? "進行中" : "開始前";
+            const statusClass = match.status === "FINISHED" ? "is-finished" : match.status === "IN_PROGRESS" ? "is-live" : "";
+            return `<button type="button" class="team-day-timetable-row ${statusClass}" data-start-minute="${parseTimeMinutes(start)}" onclick="openModal('${match.id}')"><span class="team-day-timetable-index">${String(index + 1).padStart(2, "0")}</span><span class="team-day-timetable-time">${start}<small>〜</small>${end}</span><span class="team-day-timetable-details"><strong>${match.sport ?? match.title}</strong><small>${match.grade ?? ""}　${match.court ?? ""}</small></span><span class="team-day-timetable-status">${status}</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>`;
+        }).join("") || '<p class="team-day-timetable-empty">表示できる試合がありません。</p>';
+        container.insertAdjacentHTML("beforeend", '<div id="ganttTimeBar" class="team-day-current-time" aria-hidden="true"><span>現在 <b data-gantt-current-time></b></span></div>');
+        updateGanttTimeBar(new Date());
+        return;
+    }
     const startH = 8;
     const endH = 16;
     const totalMins = (endH - startH) * 60;
@@ -1420,6 +1434,16 @@ function toggleGanttGroup(groupKey) {
 }
 function updateGanttTimeBar(now) {
     const bar = document.getElementById("ganttTimeBar");
+    const timetable = document.querySelector(".team-day-timetable");
+    if (bar && timetable) {
+        const currentMinute = now.getHours() * 60 + now.getMinutes();
+        const next = [...timetable.querySelectorAll(".team-day-timetable-row")].find((row) => Number(row.dataset.startMinute) >= currentMinute);
+        bar.style.top = `${next ? Math.max(0, next.offsetTop - 3) : timetable.scrollHeight}px`;
+        bar.style.display = "block";
+        const label = bar.querySelector("[data-gantt-current-time]");
+        if (label) label.textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        return;
+    }
     const track = document.querySelector(".gantt-lane-track");
     const lanes = document.getElementById("ganttLanes");
     if (!bar || !track || !lanes)
@@ -1448,7 +1472,9 @@ function renderResultsTab() {
     appState.schedule.forEach((m) => {
         if (gradeFilter !== "ALL" && m.grade !== gradeFilter)
             return;
-        const key = m.blockId ?? `${m.grade} - ${m.sport}`;
+        const key = SPORTS_PAGE_CONFIG.splitTeamBlocks
+            ? `${m.competitionId ?? m.parentBlockId ?? m.blockId ?? m.sport}|${m.grade}`
+            : (m.blockId ?? `${m.grade} - ${m.sport}`);
         if (!categories[key]) {
             categories[key] = {
                 grade: m.grade,
@@ -1488,7 +1514,7 @@ function renderResultsTab() {
       <div class="overflow-x-auto">
         <table class="w-full text-[11px] min-w-[420px]">
           <thead><tr class="text-left text-slate-400 border-b border-slate-200 dark:border-slate-800"><th class="py-1">順位</th><th>組</th><th>勝</th><th>分</th><th>敗</th><th>競技点</th></tr></thead>
-          <tbody>${standings.map((standing) => `<tr class="border-b border-slate-100 dark:border-slate-800/70"><td class="py-1.5 font-black">${competitionComplete ? `${standing.rank}位` : "未確定"}</td><td class="font-black ${standing.team === "C" ? "text-emerald-600 dark:text-emerald-400" : standing.team === "D" ? "text-amber-500 dark:text-amber-400" : ""}">${standing.team}</td><td>${standing.wins}</td><td>${standing.draws}</td><td>${standing.losses}</td><td class="font-black text-sky-600 dark:text-sky-400">${competitionComplete ? `${standing.rankPoints}pt` : "-"}</td></tr>`).join("")}</tbody>
+          <tbody>${standings.map((standing) => `<tr class="border-b border-slate-100 dark:border-slate-800/70"><td class="py-1.5 font-black">${competitionComplete ? `${standing.rank}位` : "未確定"}</td><td class="font-black ${standing.team === "A" ? "text-red-600 dark:text-red-400" : standing.team === "B" ? "text-blue-600 dark:text-blue-400" : standing.team === "C" ? "text-emerald-600 dark:text-emerald-400" : standing.team === "D" ? "text-amber-500 dark:text-amber-400" : ""}">${standing.team}</td><td>${standing.wins}</td><td>${standing.draws}</td><td>${standing.losses}</td><td class="font-black text-sky-600 dark:text-sky-400">${competitionComplete ? `${standing.rankPoints}pt` : "-"}</td></tr>`).join("")}</tbody>
         </table>
       </div>
     `;
@@ -1521,6 +1547,13 @@ function renderResultsTab() {
 function calculateCompetitionStandings(matches, format) {
     if (format === "exhibition")
         return [];
+    if (SPORTS_PAGE_CONFIG.splitTeamBlocks && matches[0]?.sport === "螟ｧ邇蛾√ｊ") {
+        const ranked = matches.find((match) => Array.isArray(match.rankOrder) && match.rankOrder.length === 4);
+        return ["A", "B", "C", "D"].map((team) => {
+            const rank = ranked?.rankOrder.indexOf(team) + 1 || 0;
+            return { team, wins: 0, draws: 0, losses: 0, points: 0, rank, rankPoints: rank ? ranked.rankPointsByTeam?.[team] ?? ranked.pointRule?.[rank - 1] ?? 0 : 0 };
+        });
+    }
     if (format === "tournament" && matches.some((match) => match.tournamentType === "race")) {
         const race = matches.find((match) => match.tournamentType === "race");
         const pointRule = race?.pointRule ?? [200, 150, 100, 50];
@@ -2038,6 +2071,12 @@ function createCompetitionBlock() {
 }
 function resolveTeamParticipant(match, team) {
     const label = String(team ?? "");
+    if (match.sport === "竹取物語" && /(?:前半|後半)第[12]試合勝者/.test(label)) {
+        const group = label.startsWith("前半") ? "H2・H3前半" : "H2・H3後半";
+        const round = label.includes("第1試合") ? "第1試合" : "第2試合";
+        const index = (match.matchCards ?? []).findIndex((card) => card.group === group && (card.label ?? "").includes(round));
+        return match.cardResults?.[index] || label;
+    }
     if (!label || /^[A-D]$/.test(label) || label === "教師" || label.startsWith("運動部") || label.startsWith("文化部")) return label;
     const siblings = appState.schedule.filter((item) => (item.competitionId ?? item.parentBlockId ?? item.blockId) === (match.competitionId ?? match.parentBlockId ?? match.blockId));
     if (/前半1位|後半1位/.test(label)) {
@@ -2063,7 +2102,7 @@ function updateBigBallRanking(match) {
     if (!["A", "B", "C", "D"].every((team) => Number.isFinite(times[team]))) return;
     const ranking = ["A", "B", "C", "D"].sort((a, b) => times[a] - times[b]);
     const points = Object.fromEntries(ranking.map((team, index) => [team, match.pointRule?.[index] ?? 0]));
-    siblings.forEach((item) => { item.rankOrder = ranking; item.rankByTeam = Object.fromEntries(ranking.map((team, index) => [team, index + 1])); item.rankPointsByTeam = points; });
+    siblings.forEach((item) => { item.rankOrder = ranking; item.rankByTeam = Object.fromEntries(ranking.map((team, index) => [team, index + 1])); item.rankPointsByTeam = points; item.cardResults ??= []; item.cardResults[0] = ranking[0]; });
 }
 function getTeamCardDefaultMode(sport) {
     if (["竹取物語", "しっぽとり", "100人フットボール"].includes(sport)) return "points";
