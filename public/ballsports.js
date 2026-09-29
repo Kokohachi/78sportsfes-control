@@ -767,17 +767,24 @@ function renderCourtDelaySummary() {
     const courts = SPORTS_PAGE_CONFIG.courts ?? ["上グラ", "下グラ", "体育館", "ハード", "オムニ", "卓球場"];
     const summaryContainer = document.getElementById("courtDelaySummaryBar");
     const adminMonitor = document.getElementById("adminCourtDelayMonitor");
+    let adminMonitorHtml = "";
     const summaryHtml = courts.map((court) => {
         const matches = appState.schedule.filter((match) => match.court === court);
         const maxOffset = matches.length ? Math.max(...matches.map((match) => match.offsetMins ?? 0)) : 0;
         const running = matches.find((match) => match.status === "IN_PROGRESS");
         const next = matches.filter((match) => match.status === "BEFORE").sort((a, b) => a.start.localeCompare(b.start))[0];
-        return `<div class="stat-tile border rounded-2xl p-2.5 text-center shadow-sm"><div class="text-[10px] font-black">${court}</div><div class="mt-1 text-xs font-mono font-black">${maxOffset > 0 ? `+${maxOffset}分遅延` : maxOffset < 0 ? `${maxOffset}分前倒し` : "順調 (±0分)"}</div><div class="mt-1 text-[10px] truncate">${running ? `${running.grade} / ${running.sport}` : next ? `${next.grade} / ${next.sport}` : "試合なし"}</div></div>`;
+        const delayed = maxOffset > 0;
+        const delayLabel = delayed ? `+${maxOffset}分 遅延中` : maxOffset < 0 ? `${maxOffset}分 前倒し` : "順調 (±0分)";
+        const currentLabel = running ? `${running.grade} / ${running.sport}` : next ? `${next.grade} / ${next.sport}` : "試合なし";
+        const flashClass = delayed ? "court-delay-flash" : "";
+        const stateClass = delayed ? "text-rose-600 dark:text-rose-400" : maxOffset < 0 ? "text-sky-600 dark:text-sky-400" : "text-slate-600 dark:text-slate-400";
+        adminMonitorHtml += `<div class="surface-card rounded-2xl p-3 flex justify-between items-center gap-3 ${delayed ? "border-rose-500/70" : ""}"><div><div class="font-black text-xs text-slate-800 dark:text-slate-100"><i class="fa-solid fa-location-dot mr-1 ${delayed ? "text-rose-500" : "text-slate-400"} ${flashClass}"></i>${court} 会場</div><div class="text-[10px] text-slate-400 mt-1">${running ? `進行中: ${running.grade} ${running.sport}` : next ? `次の試合: ${next.grade} ${next.sport}` : "試合なし"}</div></div><span class="text-xs font-mono font-black px-2.5 py-1 rounded-lg inline-block ${delayed ? `bg-rose-600 text-white ${flashClass}` : maxOffset < 0 ? "bg-sky-500 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}">${delayLabel}</span></div>`;
+        return `<div class="stat-tile border rounded-2xl p-2.5 text-center shadow-sm ${delayed ? `border-rose-400 bg-rose-50 dark:bg-rose-950/40 ${flashClass}` : maxOffset < 0 ? "border-sky-300 bg-sky-50 dark:bg-sky-950/40" : "border-slate-200 bg-slate-100 dark:bg-slate-800"}"><div class="text-[10px] font-black ${delayed ? "text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-400"}"><i class="fa-solid fa-location-dot mr-1 ${delayed ? `text-rose-500 ${flashClass}` : ""}"></i>${court}</div><div class="mt-1 text-xs font-mono font-black ${stateClass}">${delayLabel}</div><div class="mt-1 text-[10px] truncate">${currentLabel}</div></div>`;
     }).join("");
     if (summaryContainer)
         summaryContainer.innerHTML = summaryHtml;
     if (adminMonitor)
-        adminMonitor.innerHTML = courts.map((court) => `<div class="surface-card rounded-2xl p-3"><strong>${court} コート</strong></div>`).join("");
+        adminMonitor.innerHTML = adminMonitorHtml;
 }
 function renderTimeConfigEditor() {
     const listContainer = document.getElementById("timeConfigList");
@@ -899,6 +906,7 @@ function createMatchItemHtml(m) {
     const blockMatches = m.blockId ? appState.schedule.filter((item) => item.blockId === m.blockId) : [m];
     const isDelayed = blockMatches.some((item) => item.offsetMins > 0 || (item.endOffsetMins ?? 0) > 0);
     const formatVersus = (value) => String(value ?? "").replace(/\s*\/\s*/g, "対");
+    const useRoundRobinStyleScoring = !SPORTS_PAGE_CONFIG.splitTeamBlocks;
     const inputMode = m.inputMode ?? getCompetitionInputMode(m.sport);
     const tournamentCards = getCompetitionCards(m);
     const bracketGroups = m.tournamentType === "bracket" ? getCompetitionGroups(m) : [];
@@ -941,7 +949,7 @@ function createMatchItemHtml(m) {
     const scoreAVal = m.scoreA !== null ? String(m.scoreA) : "";
     const scoreBVal = m.scoreB !== null ? String(m.scoreB) : "";
     const teamBLabel = m.teamB || (m.tournamentType === "race" ? "順位入力" : "チームB");
-        const scoreControlsHtml = m.format === "tournament" || m.format === "exhibition" ? "" : `
+        const scoreControlsHtml = m.format === "exhibition" || (!useRoundRobinStyleScoring && m.format === "tournament") ? "" : `
             <div class="bg-slate-50/90 dark:bg-slate-950/80 p-2.5 rounded-xl flex flex-wrap justify-between items-center gap-2 border border-slate-200 dark:border-slate-800/80">
                 <div class="flex items-center gap-2 w-full sm:w-auto justify-center" onclick="event.stopPropagation()">
                     <span class="font-black text-xs text-slate-700 dark:text-slate-200 min-w-[3rem] text-right">${formatVersus(m.teamA) || "チームA"}</span>
@@ -984,14 +992,14 @@ function createMatchItemHtml(m) {
     ${tournamentOrderHtml}
     ${teamMatchSummaryHtml}
 
-    ${tournamentCardsHtml}
-    ${bracketRankingHtml}
-    ${groupedRankingHtml}
-    ${groupedCompetitionInputHtml}
+    ${useRoundRobinStyleScoring ? "" : tournamentCardsHtml}
+    ${useRoundRobinStyleScoring ? "" : bracketRankingHtml}
+    ${useRoundRobinStyleScoring ? "" : groupedRankingHtml}
+    ${useRoundRobinStyleScoring ? "" : groupedCompetitionInputHtml}
     ${simultaneousCardsHtml}
-    ${groupedRaceRankingHtml}
-    ${rankRaceHtml}
-    ${raceRankingHtml}
+    ${useRoundRobinStyleScoring ? "" : groupedRaceRankingHtml}
+    ${useRoundRobinStyleScoring ? "" : rankRaceHtml}
+    ${useRoundRobinStyleScoring ? "" : raceRankingHtml}
 
             ${scoreControlsHtml}
     </div>

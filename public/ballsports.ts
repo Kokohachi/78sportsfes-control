@@ -655,22 +655,24 @@ function renderCourtDelaySummary(): void {
 
     const currentLabel = inProgress ? `${inProgress.grade} / ${inProgress.sport} / ${inProgress.title}` : nextMatch ? `${nextMatch.grade} / ${nextMatch.sport} / ${nextMatch.title}` : "試合なし";
 
+    const delayed = maxOffset > 0;
+    const flashClass = delayed ? "court-delay-flash" : "";
     summaryHtml += `
-      <div class="stat-tile border rounded-2xl p-2.5 text-center shadow-sm ${badgeColor}">
-        <div class="text-[10px] font-black tracking-[0.18em] uppercase opacity-80">${court}</div>
-        <div class="mt-1 text-xs font-mono font-black">${delayText}</div>
+      <div class="stat-tile border rounded-2xl p-2.5 text-center shadow-sm ${badgeColor} ${flashClass}">
+        <div class="text-[10px] font-black tracking-[0.18em] uppercase opacity-80"><i class="fa-solid fa-location-dot mr-1 ${delayed ? `text-rose-500 ${flashClass}` : ""}"></i>${court}</div>
+        <div class="mt-1 text-xs font-mono font-black ${delayed ? "text-rose-600 dark:text-rose-400" : ""}">${delayText}</div>
         <div class="mt-1 text-[10px] truncate" title="${currentLabel}">${currentLabel}</div>
       </div>
     `;
 
     adminMonitorHtml += `
-      <div class="surface-card rounded-2xl p-3 flex justify-between items-center gap-3">
+      <div class="surface-card rounded-2xl p-3 flex justify-between items-center gap-3 ${delayed ? "border-rose-500/70" : ""}">
         <div>
-          <div class="font-black text-xs text-slate-800 dark:text-slate-100">${court} コート</div>
+          <div class="font-black text-xs text-slate-800 dark:text-slate-100"><i class="fa-solid fa-location-dot mr-1 ${delayed ? `text-rose-500 ${flashClass}` : "text-slate-400"}"></i>${court} 会場</div>
           <div class="text-[10px] text-slate-400 mt-1">現在: ${inProgress ? `${inProgress.grade} ${inProgress.sport} ${inProgress.title}` : "進行中なし"}</div>
         </div>
         <div class="text-right">
-          <span class="text-xs font-mono font-black px-2.5 py-1 rounded-lg inline-block ${maxOffset > 0 ? "bg-rose-500 text-white" : maxOffset < 0 ? "bg-sky-500 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}">
+          <span class="text-xs font-mono font-black px-2.5 py-1 rounded-lg inline-block ${maxOffset > 0 ? `bg-rose-500 text-white ${flashClass}` : maxOffset < 0 ? "bg-sky-500 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}">
             ${maxOffset > 0 ? `+${maxOffset}分遅延` : maxOffset < 0 ? `${maxOffset}分前倒し` : "定刻通り"}
           </span>
         </div>

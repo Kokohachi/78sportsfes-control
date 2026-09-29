@@ -1355,3 +1355,19 @@ body:has(#timelineContainer.court-lane-scroll > .court-lane:only-child) #timelin
   border-color: rgb(239 68 68 / 0.8) !important;
   animation: delayed-match-flash 1.15s ease-in-out infinite;
 }
+
+@keyframes court-delay-flash {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgb(239 68 68 / 0.08); }
+  50% { opacity: 0.48; box-shadow: 0 0 0 3px rgb(239 68 68 / 0.2); }
+}
+
+.court-delay-flash {
+  animation: court-delay-flash 0.9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .court-delay-flash,
+  .delayed-block {
+    animation: none;
+  }
+}
