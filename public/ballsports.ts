@@ -57,6 +57,9 @@ const FIREBASE_CONFIG = {
   appId: "1:96596815858:web:5f85526bf785ccc5d8056b",
   measurementId: "G-TCPMRTY3P1"
 };
+const MAIN_DATA_DOC = "ball_sports_test2_main";
+const BACKUP_DATA_DOC = "ball_sports_test2_backups";
+const SCOREBOARD_DOC = "ball_day";
 
 const INITIAL_SCHEDULE: Match[] = [
   { id: "m1", blockId: "initial_c1_soccer", blockTitle: "第1試合", court: "上グラ", sport: "サッカー", grade: "中1", title: "第一試合", format: "league", teamA: "A", teamB: "B", scoreA: null, scoreB: null, start: "08:20", end: "08:30", referee: "相山", staff: "進行", status: "BEFORE", offsetMins: 0, pointRule: [150, 100, 50, 0] },
@@ -202,6 +205,9 @@ let firebaseSync: { app: any; db: any; initialized: boolean; online: boolean; un
 (window as any).firebaseSync = firebaseSync;
 let firebaseWriteInFlight = false;
 let firebaseWritePending = false;
+let automaticBackupTimer = 0;
+let automaticBackupInFlight = false;
+let lastAutomaticBackupSignature = "";
 
 function updateSyncStatus(label: string, tone: "success" | "warning" | "sky" = "sky"): void {
   const badge = document.getElementById("syncStatusBadge");
@@ -449,11 +455,13 @@ async function initFirebaseSync(): Promise<void> {
       console.log("[Firebase] リモートデータなし、ローカルデータを使用");
       await syncStateToFirebase();
     } else {
-      const primarySnapshot = await firebaseSync.db.collection("app_data").doc("ball_sports_test2_main").get();
+      const primarySnapshot = await firebaseSync.db.collection("app_data").doc(MAIN_DATA_DOC).get();
       if (!primarySnapshot.exists) await syncStateToFirebase();
     }
 
     subscribeToRemoteData();
+    scheduleAutomaticBackup(5000);
+    window.setInterval(() => createAutomaticBackup(), 15 * 60 * 1000);
   }
   catch (err) {
     console.error("[Firebase 初期化失敗]", err);
@@ -472,7 +480,7 @@ async function syncStateToFirebase(): Promise<void> {
   firebaseWriteInFlight = true;
 
   try {
-    const mainDoc = firebaseSync.db.collection("app_data").doc("ball_sports_test2_main");
+    const mainDoc = firebaseSync.db.collection("app_data").doc(MAIN_DATA_DOC);
     do {
       firebaseWritePending = false;
       const payload = {
@@ -481,7 +489,13 @@ async function syncStateToFirebase(): Promise<void> {
         updatedAt: new Date().toISOString()
       };
       await mainDoc.set(payload, { merge: true });
+      const scoreboard = buildScoreboardPayload();
+      await firebaseSync.db.collection("public_scoreboards").doc(SCOREBOARD_DOC).set({
+        payloadJson: JSON.stringify(scoreboard),
+        updatedAt: scoreboard.updatedAt
+      });
     } while (firebaseWritePending);
+    scheduleAutomaticBackup();
     updateSyncStatus("同期済み", "success");
   }
   catch (err) {
@@ -569,6 +583,7 @@ function saveState(): void {
   localStorage.setItem("gym78_ball_day_v1_announcement", appState.announcement);
   if (firebaseSync.initialized) {
     syncStateToFirebase().catch((err) => console.warn("[自動同期スキップ]", err));
+    scheduleAutomaticBackup();
   }
 }
 
@@ -1248,9 +1263,9 @@ function calculateTournamentStandings(matches: Match[]): Array<{ team: string; w
   }));
 }
 
-function calculateScoresAndRanks(): void {
+function buildScoreboardPayload(): { page: string; updatedAt: string; totals: Record<string, number>; competitions: Array<{ sport: string; group: string; points: Record<string, number> }> } {
   const totals: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
-
+  const competitions: Array<{ sport: string; group: string; points: Record<string, number> }> = [];
   const categories: Record<string, Match[]> = {};
   appState.schedule.forEach((match) => {
     if (match.format === "exhibition") return;
@@ -1259,10 +1274,20 @@ function calculateScoresAndRanks(): void {
     categories[key].push(match);
   });
   Object.values(categories).forEach((matches) => {
+    const points: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
     calculateCompetitionStandings(matches, matches[0].format).forEach((standing) => {
-      if (totals[standing.team] !== undefined) totals[standing.team] += standing.rankPoints;
+      if (totals[standing.team] !== undefined) {
+        points[standing.team] += Number(standing.rankPoints) || 0;
+        totals[standing.team] += Number(standing.rankPoints) || 0;
+      }
     });
+    competitions.push({ sport: matches[0].sport, group: matches[0].grade, points });
   });
+  return { page: "ball", updatedAt: new Date().toISOString(), totals, competitions };
+}
+
+function calculateScoresAndRanks(): void {
+  const totals = buildScoreboardPayload().totals;
 
   const scoreDisplayA = document.getElementById("scoreDisplayA");
   const scoreDisplayB = document.getElementById("scoreDisplayB");
@@ -1579,7 +1604,7 @@ function dismissAnnouncement(): void {
 
 function getBackupCollection(): any | null {
   if (!firebaseSync.db || !firebaseSync.initialized) return null;
-  return firebaseSync.db.collection("app_data").doc("ball_sports_test2_backups").collection("snapshots");
+  return firebaseSync.db.collection("app_data").doc(BACKUP_DATA_DOC).collection("snapshots");
 }
 
 async function createBackup(): Promise<void> {
@@ -1598,13 +1623,60 @@ async function createBackup(): Promise<void> {
       announcement: appState.announcement,
       createdAt,
       matchCount: appState.schedule.length,
-      schemaVersion: 1
+      schemaVersion: 1,
+      automatic: false
     });
+    lastAutomaticBackupSignature = JSON.stringify({ schedule: appState.schedule, announcement: appState.announcement });
     if (status) status.textContent = `${new Date(createdAt).toLocaleString("ja-JP")} に ${appState.schedule.length}試合をバックアップしました。`;
     await loadBackupList();
   } catch (error) {
     console.error("[バックアップ作成失敗]", error);
     if (status) status.textContent = "バックアップを作成できませんでした。JSON出力を利用してください。";
+  }
+}
+
+function scheduleAutomaticBackup(delay = 60_000): void {
+  if (!firebaseSync.db || !firebaseSync.initialized) return;
+  window.clearTimeout(automaticBackupTimer);
+  automaticBackupTimer = window.setTimeout(() => createAutomaticBackup(), delay);
+}
+
+async function createAutomaticBackup(): Promise<void> {
+  const backups = getBackupCollection();
+  if (!backups || automaticBackupInFlight) return;
+  const snapshotData = { schedule: appState.schedule, announcement: appState.announcement };
+  const signature = JSON.stringify(snapshotData);
+  if (signature === lastAutomaticBackupSignature) return;
+  automaticBackupInFlight = true;
+  try {
+    const latestSnapshot = await backups.orderBy("createdAt", "desc").limit(1).get();
+    const latest = latestSnapshot.docs[0]?.data();
+    if (latest && JSON.stringify({ schedule: latest.schedule, announcement: latest.announcement ?? "" }) === signature) {
+      lastAutomaticBackupSignature = signature;
+      return;
+    }
+    const createdAt = new Date().toISOString();
+    await backups.doc(`auto-${Date.now()}`).set({
+      ...snapshotData,
+      createdAt,
+      matchCount: appState.schedule.length,
+      schemaVersion: 1,
+      automatic: true
+    });
+    lastAutomaticBackupSignature = signature;
+    const keep = await backups.orderBy("createdAt", "desc").limit(101).get();
+    if (keep.size > 100) {
+      const batch = firebaseSync.db.batch();
+      keep.docs.slice(100).forEach((doc: any) => batch.delete(doc.ref));
+      await batch.commit();
+    }
+    const status = document.getElementById("dataBackupStatus");
+    if (status) status.textContent = `${new Date(createdAt).toLocaleString("ja-JP")} に自動バックアップしました。`;
+    await loadBackupList();
+  } catch (error) {
+    console.warn("[自動バックアップ失敗]", error);
+  } finally {
+    automaticBackupInFlight = false;
   }
 }
 
