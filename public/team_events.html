@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>団体競技日 進行管理｜スポーツフェスタ</title>
+  <script>document.documentElement.classList.add('page-password-locked');</script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <!-- 🔥 Firebase SDK（Auth追加） -->
@@ -91,8 +92,25 @@
     }
     .google-btn:hover { background: #f8f8f8 !important; }
   </style>
+  <style>
+    html.page-password-locked body > :not(#teamEventsPasswordGate) { visibility: hidden !important; }
+    html.page-password-locked, html.page-password-locked body { min-height: 100%; overflow: hidden; }
+    #teamEventsPasswordGate { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 1.5rem; background: #0a0a0a; color: #f8fafc; }
+    #teamEventsPasswordGate[hidden] { display: none; }
+  </style>
 </head>
 <body class="text-white max-w-4xl mx-auto px-4 py-10 md:py-14">
+  <section id="teamEventsPasswordGate" aria-labelledby="teamEventsPasswordTitle">
+    <form id="teamEventsPasswordForm" class="w-full max-w-sm rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
+      <div class="mb-3 text-3xl" aria-hidden="true">🔒</div>
+      <h1 id="teamEventsPasswordTitle" class="mb-2 text-xl font-bold">団体競技日</h1>
+      <p class="mb-5 text-sm text-gray-400">続けるにはパスワードを入力してください。</p>
+      <label class="sr-only" for="teamEventsPasswordInput">パスワード</label>
+      <input id="teamEventsPasswordInput" type="password" autocomplete="current-password" required autofocus placeholder="パスワード" class="mb-3 w-full rounded-xl px-4 py-3 text-center outline-none focus:border-emerald-400">
+      <p id="teamEventsPasswordError" class="mb-3 hidden text-sm text-rose-400" role="alert">パスワードが違います。</p>
+      <button type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-500">開く</button>
+    </form>
+  </section>
   <header class="mb-10 fade-in-up">
     <a href="timetable.html" class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4">
       <i data-lucide="arrow-left" class="w-4 h-4"></i><span>進行管理に戻る</span>
@@ -933,6 +951,33 @@
     }
     init();
     setInterval(renderTimetable, 60000);
+  </script>
+  <script>
+    (() => {
+      const gate = document.getElementById('teamEventsPasswordGate');
+      const form = document.getElementById('teamEventsPasswordForm');
+      const input = document.getElementById('teamEventsPasswordInput');
+      const error = document.getElementById('teamEventsPasswordError');
+      const expected = '4f5aff7cb424bcaeb6efef7e46f7520592c0b81714b529c0eb280f5086a9dcad';
+      if (sessionStorage.getItem('teamEventsPageUnlocked') === 'true') {
+        gate.hidden = true;
+        document.documentElement.classList.remove('page-password-locked');
+      }
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const bytes = new TextEncoder().encode(input.value);
+        const digest = await crypto.subtle.digest('SHA-256', bytes);
+        const actual = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+        if (actual !== expected) {
+          error.classList.remove('hidden');
+          input.select();
+          return;
+        }
+        sessionStorage.setItem('teamEventsPageUnlocked', 'true');
+        gate.hidden = true;
+        document.documentElement.classList.remove('page-password-locked');
+      });
+    })();
   </script>
 </body>
 </html>
