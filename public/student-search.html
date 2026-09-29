@@ -60,6 +60,17 @@
         <h2>項目を追加</h2>
         <p class="muted">新しい項目を作ると、全生徒に空欄の列が追加されます。値は後から表形式で編集できます。</p>
         <form id="addFieldForm" class="add-field-form"><label>項目名<input id="newFieldName" type="text" maxlength="80" required placeholder="例：所属パート"></label><button class="button button-secondary" type="submit">項目を追加</button></form>
+        <div class="student-assignment">
+          <h3>生徒を選んで値を追加</h3>
+          <div class="assignment-controls">
+            <label>追加先の項目<select id="assignmentField"></select></label>
+            <label>生徒を検索<input id="studentPickerSearch" type="search" autocomplete="off" placeholder="名字・名前・番号など"></label>
+            <label>追加する値<input id="assignmentValue" type="text" maxlength="300" placeholder="この生徒に設定する文字列"></label>
+          </div>
+          <div id="studentCandidates" class="student-candidates" role="listbox" aria-label="生徒候補"></div>
+          <p id="selectedStudent" class="muted">候補から生徒を選択してください。</p>
+          <button id="assignValueButton" class="button button-secondary" type="button" disabled>選択した生徒に追加</button>
+        </div>
         <p id="editStatus" class="message" role="status"></p>
       </section>
       <p class="footer-note">出欠CSVの列は下の「出力項目」で選べます。メールアドレス等は初期状態で出力しません。</p>

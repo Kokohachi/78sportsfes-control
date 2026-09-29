@@ -20,7 +20,7 @@
   const SENSITIVE_HINT = /mail|メール|メアド|gmail|電話|phone|住所|address/i;
   const FREE_TEXT_FILTER_HINT = /4桁番号|四桁番号|学籍番号|生徒番号|個人番号|名字|姓|名前|氏名|メアド|メール|gmail|e-mail|^名$/i;
   const SPORT_HINT = /球技|競技|種目|sport/i;
-  const state = { rows: [], fields: [], filters: {}, staged: null, lockTimer: 0, db: null, auth: null, user: null, unsubscribe: null };
+  const state = { rows: [], fields: [], filters: {}, staged: null, selectedStudentIndex: -1, lockTimer: 0, db: null, auth: null, user: null, unsubscribe: null };
   const $ = (id) => document.getElementById(id);
 
   const encoder = new TextEncoder();
@@ -210,7 +210,51 @@
     $("datasetSummary").textContent = state.rows.length ? `${state.rows.length.toLocaleString()}人 / ${state.fields.length}項目　（共有名簿）` : "名簿はまだありません。ExcelまたはCSVを選択して読み込んでください。";
     renderFilters();
     renderExportFields();
+    renderAssignmentFields();
     renderResults();
+  }
+
+  function studentDisplayName(record) {
+    const full = state.fields.find((field) => /^(氏名|生徒氏名|名前（フル）)$/.test(field.trim()));
+    const family = state.fields.find((field) => /^(名字|姓|姓（漢字）|名字（漢字）)$/.test(field.trim()));
+    const given = state.fields.find((field) => /^(名前|名|名（漢字）)$/.test(field.trim()));
+    return full ? String(record[full] ?? "（氏名なし）")
+      : family || given ? [record[family] ?? "", record[given] ?? ""].filter(Boolean).join(" ")
+        : String(record[state.fields[0]] ?? "生徒");
+  }
+
+  function renderAssignmentFields() {
+    const select = $("assignmentField");
+    const previous = select.value;
+    select.replaceChildren(...state.fields.map((field) => new Option(field, field)));
+    if (state.fields.includes(previous)) select.value = previous;
+    $("assignValueButton").disabled = state.selectedStudentIndex < 0 || !select.value;
+  }
+
+  function renderStudentCandidates() {
+    const container = $("studentCandidates"); container.replaceChildren();
+    const query = $("studentPickerSearch").value.trim().normalize("NFKC").toLocaleLowerCase("ja");
+    state.selectedStudentIndex = -1;
+    $("selectedStudent").textContent = "候補から生徒を選択してください。";
+    if (query.length < 1) { renderAssignmentFields(); return; }
+    const matches = state.rows.map((record, index) => ({ record, index })).filter(({ record }) =>
+      state.fields.filter((field) => !SENSITIVE_HINT.test(field)).some((field) => String(record[field] ?? "").normalize("NFKC").toLocaleLowerCase("ja").includes(query))
+    ).slice(0, 20);
+    matches.forEach(({ record, index }) => {
+      const button = document.createElement("button"); button.type = "button"; button.className = "student-candidate"; button.setAttribute("role", "option");
+      const details = state.fields.filter((field) => /番号|学年|組|クラス/.test(field) && !SENSITIVE_HINT.test(field) && record[field]).map((field) => `${field}: ${record[field]}`).join(" / ");
+      button.textContent = details ? `${studentDisplayName(record)}　${details}` : studentDisplayName(record);
+      button.addEventListener("click", () => {
+        state.selectedStudentIndex = index;
+        $("selectedStudent").textContent = `選択中: ${studentDisplayName(record)}${details ? `　${details}` : ""}`;
+        container.querySelectorAll(".student-candidate").forEach((item) => item.classList.remove("selected"));
+        button.classList.add("selected"); renderAssignmentFields();
+      });
+      container.append(button);
+    });
+    if (!matches.length) { const note = document.createElement("p"); note.className = "muted"; note.textContent = "該当する生徒が見つかりません。"; container.append(note); }
+    else if (matches.length === 20) { const note = document.createElement("p"); note.className = "muted"; note.textContent = "候補は20人まで表示しています。検索語を追加してください。"; container.append(note); }
+    renderAssignmentFields();
   }
 
   function renderFilters() {
@@ -412,6 +456,21 @@
   $("query").addEventListener("input", () => { renderResults(); resetLockTimer(); });
   $("exportButton").addEventListener("click", exportCsv);
   $("viewMode").addEventListener("change", renderResults);
+  $("viewMode").addEventListener("change", () => document.body.classList.toggle("wide-table-view", $("viewMode").value === "table"));
+  $("studentPickerSearch").addEventListener("input", renderStudentCandidates);
+  $("assignmentField").addEventListener("change", renderAssignmentFields);
+  $("assignValueButton").addEventListener("click", async () => {
+    const index = state.selectedStudentIndex, field = $("assignmentField").value, value = $("assignmentValue").value.trim();
+    if (index < 0 || !state.rows[index] || !field) return;
+    if (!value) return setMessage("editStatus", "追加する文字列を入力してください。", true);
+    const record = state.rows[index], previousValue = record[field] ?? "";
+    record[field] = value;
+    try {
+      await persist(); setMessage("editStatus", `${studentDisplayName(record)}さんの「${field}」を保存しました。`); $("assignmentValue").value = ""; renderResults(); resetLockTimer();
+    } catch (error) {
+      record[field] = previousValue; setMessage("editStatus", `保存できませんでした: ${error.message}`, true);
+    }
+  });
   $("addFieldForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const field = $("newFieldName").value.trim();
@@ -420,7 +479,7 @@
     const oldFields = state.fields, oldRows = state.rows.map((row) => ({ ...row }));
     state.fields = [...state.fields, field]; state.rows.forEach((row) => { row[field] = ""; });
     try {
-      await persist(); $("newFieldName").value = ""; setMessage("editStatus", `「${field}」を追加して保存しました。`); renderDirectory();
+      await persist(); $("newFieldName").value = ""; setMessage("editStatus", `「${field}」を追加して保存しました。`); renderDirectory(); $("assignmentField").value = field; renderAssignmentFields();
     } catch (error) {
       state.fields = oldFields; state.rows = oldRows; setMessage("editStatus", `保存できませんでした: ${error.message}`, true);
     }
