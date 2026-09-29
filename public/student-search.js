@@ -373,9 +373,14 @@
     try {
       stageImport(await readFile(file));
     } catch (error) {
+      console.error("Excel/CSVの読み込みに失敗しました:", error);
       $("importOptions").classList.add("hidden");
       $("importFile").value = "";
-      setMessage("importStatus", error.message?.includes("password") || error.message?.includes("encrypted") ? "このExcelはパスワード付きです。ExcelでローカルにCSV UTF-8またはパスワードなし.xlsxとして保存してから読み込んでください。" : "ファイルを読み込めませんでした。CSV UTF-8またはパスワードなしの.xlsxを選択してください。", true);
+      const detail = String(error?.message || error || "不明なエラー").slice(0, 180);
+      const hint = detail.toLowerCase().includes("password") || detail.toLowerCase().includes("encrypted")
+        ? "パスワードなしの.xlsxまたはCSV UTF-8で保存し直してください。"
+        : "対応形式はCSVまたは.xlsxです。詳細を確認して再度お試しください。";
+      setMessage("importStatus", `読み込み失敗: ${detail}。${hint}`, true);
     }
   });
   $("sheetSelect").addEventListener("change", updateImportKeyOptions);
