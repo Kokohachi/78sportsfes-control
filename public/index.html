@@ -17,7 +17,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600;700;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * {
       font-family: 'Space Grotesk', system-ui, sans-serif;
@@ -152,6 +152,44 @@
         inset 0 -1px 0 rgba(0,0,0,0.5);
       position: relative;
       overflow: hidden;
+    }
+    .countdown-card.event-complete {
+      background:
+        radial-gradient(ellipse at 50% 100%, rgba(200,164,96,0.13), transparent 58%),
+        linear-gradient(145deg, rgba(32,32,32,0.88), rgba(12,12,12,0.96));
+      border-color: rgba(210,184,128,0.24);
+      box-shadow: 0 30px 100px rgba(0,0,0,0.72), 0 0 90px rgba(200,164,96,0.07), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .countdown-card.event-complete > div:first-child,
+    .countdown-card.event-complete > div:last-child { display: none; }
+    .event-title-panel { position: relative; z-index: 1; padding: clamp(1.4rem, 4vw, 3.5rem) 0; }
+    .event-title-overline {
+      display: inline-flex; align-items: center; gap: 1rem;
+      color: #c9b27e; font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(0.6rem, 1.2vw, 0.72rem); font-weight: 600;
+      letter-spacing: 0.36em; text-transform: uppercase;
+    }
+    .event-title-overline::before, .event-title-overline::after {
+      content: ''; width: clamp(1.5rem, 6vw, 4rem); height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201,178,126,0.7));
+    }
+    .event-title-overline::after { transform: rotate(180deg); }
+    .event-title-jp {
+      margin: clamp(1.2rem, 3vw, 2rem) 0 0;
+      color: #f8f4e9; font-family: 'Noto Serif JP', 'Yu Mincho', serif;
+      font-size: clamp(2.55rem, 8vw, 6.4rem); font-weight: 700;
+      letter-spacing: 0.14em; line-height: 1.28;
+      text-shadow: 0 3px 28px rgba(255,255,255,0.12), 0 0 70px rgba(201,178,126,0.12);
+    }
+    .event-title-en {
+      margin: 1.15rem 0 0; color: rgba(235,229,215,0.76);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(0.78rem, 2vw, 1.05rem); font-weight: 400;
+      letter-spacing: clamp(0.18em, 0.8vw, 0.42em); text-transform: uppercase;
+    }
+    .event-title-mark {
+      width: 3rem; height: 1px; margin: 1.8rem auto 0;
+      background: linear-gradient(90deg, transparent, #c9b27e, transparent);
     }
     .countdown-card::before {
       content: '';
@@ -832,18 +870,13 @@
 
       if (diff <= 0) {
         if (container.dataset.state !== 'event-day') {
+          container.parentElement.classList.add('event-complete');
           container.innerHTML = `
-            <div class="w-full py-8 md:py-12">
-              <div class="flex items-center justify-center gap-3 mb-6">
-                <img
-                  src="https://p16-flow-image-sign.ibyteimg.com/tos-mya-i-uo7y4d541q/a3ab12918aba45a2a2329845f6dcc9e9.jpg~tplv-0es2k971ck-image.image?rcl=202609240247184651974C1893822DA5C7&rk3s=8e244e95&rrcfp=935dee89&x-expires=1790794039&x-signature=CNjmqAzc0rP2t6PzpuA9Xa2Qioc%3D"
-                  alt="78th Logo"
-                  class="w-12 h-12 md:w-16 md:h-16"
-                  style="filter: drop-shadow(0 0 20px rgba(255,255,255,0.2));"
-                >
-              </div>
-              <p class="text-2xl md:text-5xl lg:text-6xl font-bold gradient-text glow-text tracking-[0.1em]">体育祭当日！</p>
-              <p class="text-gray-400 mt-4 md:mt-6 tracking-[0.2em] uppercase text-xs md:text-sm">Let's make it unforgettable!</p>
+            <div class="event-title-panel w-full">
+              <p class="event-title-overline">Musashi · October 01, 2026</p>
+              <h2 class="event-title-jp">第78回体育祭</h2>
+              <p class="event-title-en">78th Musashi Sports Festival</p>
+              <div class="event-title-mark" aria-hidden="true"></div>
             </div>
           `;
           container.dataset.state = 'event-day';

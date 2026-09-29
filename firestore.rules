@@ -4,7 +4,19 @@ service cloud.firestore {
     function studentDirectoryOperator() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email == 'jh62231310@s.musashi.ed.jp';
+        && request.auth.token.email in [
+          'jh62220120@s.musashi.ed.jp',
+          'jh62220340@s.musashi.ed.jp',
+          'jh62220140@s.musashi.ed.jp',
+          'jh62231310@s.musashi.ed.jp',
+          'jh62230450@s.musashi.ed.jp',
+          'jh62220250@s.musashi.ed.jp',
+          'jh62230440@s.musashi.ed.jp',
+          'jh62220030@s.musashi.ed.jp',
+          'jh62231560@s.musashi.ed.jp',
+          'jh62230600@s.musashi.ed.jp',
+          'jh62220260@s.musashi.ed.jp'
+        ];
     }
 
     // Student records contain personal information. Only the directory

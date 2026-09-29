@@ -49,7 +49,7 @@
       </section>
 
       <section class="panel search-panel">
-        <div class="search-heading"><div><h2>検索</h2><p class="muted">全項目を対象に検索できます。列が増えても自動で検索・絞り込み対象になります。</p></div><button id="exportButton" class="button button-secondary" type="button">表示中を出欠CSV出力</button></div>
+        <div class="search-heading"><div><h2>検索</h2><p class="muted">全項目を対象に検索できます。列が増えても自動で検索・絞り込み対象になります。</p></div><button id="exportButton" class="button button-secondary" type="button">表示中を出欠Excel出力</button></div>
         <label class="search-label">氏名・番号・球技・所属など<input id="query" type="search" placeholder="複数の語句も入力できます"></label>
         <label class="view-mode-label">表示形式<select id="viewMode"><option value="cards">現在の形式</option><option value="table">表形式</option></select></label>
         <div id="filters" class="filter-grid"></div>
@@ -67,14 +67,14 @@
             <label>生徒を検索<input id="studentPickerSearch" type="search" autocomplete="off" placeholder="名字・名前・番号など"></label>
             <label>追加する値<input id="assignmentValue" type="text" maxlength="300" placeholder="この生徒に設定する文字列"></label>
           </div>
-          <div id="studentCandidates" class="student-candidates" role="listbox" aria-label="生徒候補"></div>
-          <p id="selectedStudent" class="muted">候補から生徒を選択してください。</p>
+          <div id="studentCandidates" class="student-candidates" role="group" aria-label="生徒候補"></div>
+          <p id="selectedStudent" class="muted">候補にチェックを付けて複数人を選択できます。</p>
           <button id="assignValueButton" class="button button-secondary" type="button" disabled>選択した生徒に追加</button>
         </div>
         <p id="editStatus" class="message" role="status"></p>
       </section>
-      <p class="footer-note">出欠CSVの列は下の「出力項目」で選べます。メールアドレス等は初期状態で出力しません。</p>
-      <section class="panel export-fields-panel"><h2>出欠CSVの出力項目</h2><div id="exportFields" class="field-choices"></div><label class="check-label"><input id="includeAttendance" type="checkbox" checked> 空欄の出欠欄を追加する</label></section>
+      <p class="footer-note">出欠Excelの列は下の「出力項目」で選べます。全セルに罫線を付け、メールアドレス等は初期状態で出力しません。</p>
+      <section class="panel export-fields-panel"><h2>出欠Excelの出力項目</h2><div id="exportFields" class="field-choices"></div><label class="check-label"><input id="includeAttendance" type="checkbox" checked> 空欄の「競技前」「競技後」欄を追加する</label></section>
     </section>
   </main>
 </body>

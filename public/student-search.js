@@ -11,7 +11,12 @@
     appId: "1:96596815858:web:5f85526bf785ccc5d8056b",
     measurementId: "G-TCPMRTY3P1"
   };
-  const AUTHORIZED_EMAIL = "jh62231310@s.musashi.ed.jp";
+  const AUTHORIZED_EMAILS = new Set([
+    "jh62220120@s.musashi.ed.jp", "jh62220340@s.musashi.ed.jp", "jh62220140@s.musashi.ed.jp",
+    "jh62231310@s.musashi.ed.jp", "jh62230450@s.musashi.ed.jp", "jh62220250@s.musashi.ed.jp",
+    "jh62230440@s.musashi.ed.jp", "jh62220030@s.musashi.ed.jp", "jh62231560@s.musashi.ed.jp",
+    "jh62230600@s.musashi.ed.jp", "jh62220260@s.musashi.ed.jp"
+  ]);
   // Enable only after merging the matching rule into Firebase Console and checking for broad wildcard grants.
   const FIRESTORE_RULES_READY = true;
   const DIRECTORY_DOC = "student_directory/current";
@@ -20,7 +25,7 @@
   const SENSITIVE_HINT = /mail|メール|メアド|gmail|電話|phone|住所|address/i;
   const FREE_TEXT_FILTER_HINT = /4桁番号|四桁番号|学籍番号|生徒番号|個人番号|名字|姓|名前|氏名|メアド|メール|gmail|e-mail|^名$/i;
   const SPORT_HINT = /球技|競技|種目|sport/i;
-  const state = { rows: [], fields: [], filters: {}, staged: null, selectedStudentIndex: -1, lockTimer: 0, db: null, auth: null, user: null, unsubscribe: null };
+  const state = { rows: [], fields: [], filters: {}, staged: null, selectedStudentIndices: new Set(), lockTimer: 0, db: null, auth: null, user: null, unsubscribe: null };
   const $ = (id) => document.getElementById(id);
 
   const encoder = new TextEncoder();
@@ -65,6 +70,7 @@
     state.rows = [];
     state.fields = [];
     state.staged = null;
+    state.selectedStudentIndices.clear();
     $("directoryPanel").classList.add("hidden");
     $("lockButton").classList.add("hidden");
     $("unlockPanel").classList.remove("hidden");
@@ -228,29 +234,31 @@
     const previous = select.value;
     select.replaceChildren(...state.fields.map((field) => new Option(field, field)));
     if (state.fields.includes(previous)) select.value = previous;
-    $("assignValueButton").disabled = state.selectedStudentIndex < 0 || !select.value;
+    $("assignValueButton").disabled = state.selectedStudentIndices.size === 0 || !select.value;
+    $("assignValueButton").textContent = `選択した${state.selectedStudentIndices.size}人に追加`;
   }
 
   function renderStudentCandidates() {
     const container = $("studentCandidates"); container.replaceChildren();
     const query = $("studentPickerSearch").value.trim().normalize("NFKC").toLocaleLowerCase("ja");
-    state.selectedStudentIndex = -1;
-    $("selectedStudent").textContent = "候補から生徒を選択してください。";
+    $("selectedStudent").textContent = state.selectedStudentIndices.size ? `${state.selectedStudentIndices.size}人を選択中。検索語を変えて追加選択できます。` : "候補から生徒を選択してください。";
     if (query.length < 1) { renderAssignmentFields(); return; }
     const matches = state.rows.map((record, index) => ({ record, index })).filter(({ record }) =>
       state.fields.filter((field) => !SENSITIVE_HINT.test(field)).some((field) => String(record[field] ?? "").normalize("NFKC").toLocaleLowerCase("ja").includes(query))
     ).slice(0, 20);
     matches.forEach(({ record, index }) => {
-      const button = document.createElement("button"); button.type = "button"; button.className = "student-candidate"; button.setAttribute("role", "option");
+      const label = document.createElement("label"); label.className = "student-candidate";
       const details = state.fields.filter((field) => /番号|学年|組|クラス/.test(field) && !SENSITIVE_HINT.test(field) && record[field]).map((field) => `${field}: ${record[field]}`).join(" / ");
-      button.textContent = details ? `${studentDisplayName(record)}　${details}` : studentDisplayName(record);
-      button.addEventListener("click", () => {
-        state.selectedStudentIndex = index;
-        $("selectedStudent").textContent = `選択中: ${studentDisplayName(record)}${details ? `　${details}` : ""}`;
-        container.querySelectorAll(".student-candidate").forEach((item) => item.classList.remove("selected"));
-        button.classList.add("selected"); renderAssignmentFields();
+      const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.checked = state.selectedStudentIndices.has(index);
+      const name = document.createElement("span"); name.textContent = details ? `${studentDisplayName(record)}　${details}` : studentDisplayName(record);
+      if (checkbox.checked) label.classList.add("selected");
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) state.selectedStudentIndices.add(index); else state.selectedStudentIndices.delete(index);
+        label.classList.toggle("selected", checkbox.checked);
+        $("selectedStudent").textContent = state.selectedStudentIndices.size ? `${state.selectedStudentIndices.size}人を選択中。検索語を変えて追加選択できます。` : "候補から生徒を選択してください。";
+        renderAssignmentFields();
       });
-      container.append(button);
+      label.append(checkbox, name); container.append(label);
     });
     if (!matches.length) { const note = document.createElement("p"); note.className = "muted"; note.textContent = "該当する生徒が見つかりません。"; container.append(note); }
     else if (matches.length === 20) { const note = document.createElement("p"); note.className = "muted"; note.textContent = "候補は20人まで表示しています。検索語を追加してください。"; container.append(note); }
@@ -357,23 +365,27 @@
     }
   }
 
-  function csvCell(value) {
+  function excelText(value) {
     let text = String(value ?? "");
     if (/^[\s]*[=+@-]/.test(text)) text = `'${text}`;
-    return `"${text.replace(/"/g, '""')}"`;
+    return text.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   }
 
-  function exportCsv() {
+  function exportAttendanceWorkbook() {
     const records = filteredRows();
     const fields = [...$("exportFields").querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+    const attendanceFields = $("includeAttendance").checked ? ["競技前", "競技後"] : [];
     if (!records.length) return alert("出力する生徒がいません。");
-    if (!fields.length && !$("includeAttendance").checked) return alert("CSVに出力する項目を選択してください。");
-    const headers = [...fields, ...($("includeAttendance").checked ? ["出欠"] : [])];
-    const lines = [headers, ...records.map((record) => [...fields.map((field) => record[field] ?? ""), ...($("includeAttendance").checked ? [""] : [])])];
-    const blob = new Blob(["\uFEFF" + lines.map((row) => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    if (!fields.length && !attendanceFields.length) return alert("出力する項目を選択してください。");
+    const headers = [...fields, ...attendanceFields];
+    const borderStyle = "border:1px solid #475569;padding:5px 8px;vertical-align:middle;";
+    const headerCells = headers.map((field) => `<th style="${borderStyle}background:#e8edf5;font-weight:bold">${excelText(field)}</th>`).join("");
+    const rowsHtml = records.map((record) => `<tr>${fields.map((field) => `<td style="${borderStyle}mso-number-format:'\\@'">${excelText(record[field])}</td>`).join("")}${attendanceFields.map(() => `<td style="${borderStyle}mso-number-format:'\\@'"></td>`).join("")}</tr>`).join("");
+    const documentHtml = `<!doctype html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>出欠名簿</x:Name><x:WorksheetOptions><x:DisplayGridlines>1</x:DisplayGridlines></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table style="border-collapse:collapse;border:1px solid #475569"><thead><tr>${headerCells}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`;
+    const blob = new Blob(["\uFEFF", documentHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `出欠名簿_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `出欠名簿_${new Date().toISOString().slice(0, 10)}.xls`;
     link.click();
     URL.revokeObjectURL(link.href);
     resetLockTimer();
@@ -404,13 +416,14 @@
       if (!user) {
         state.rows = [];
         state.fields = [];
+        state.selectedStudentIndices.clear();
         $("directoryPanel").classList.add("hidden");
         $("unlockPanel").classList.remove("hidden");
         $("lockButton").classList.add("hidden");
         $("results").replaceChildren();
         return;
       }
-      if (!user.emailVerified || user.email?.toLowerCase() !== AUTHORIZED_EMAIL) {
+      if (!user.emailVerified || !AUTHORIZED_EMAILS.has(user.email?.toLowerCase())) {
         setMessage("unlockMessage", `このページを利用できるのは許可されたGoogleアカウントのみです。現在のアカウント: ${user.email ?? "不明"}`, true);
         await state.auth.signOut();
         return;
@@ -454,21 +467,21 @@
   $("confirmImport").addEventListener("click", () => commitImport().catch((error) => setMessage("importStatus", error.message || "Firebaseへの保存に失敗しました。アクセスルールと接続を確認してください。", true)));
   $("cancelImport").addEventListener("click", () => { state.staged = null; $("importOptions").classList.add("hidden"); $("importFile").value = ""; });
   $("query").addEventListener("input", () => { renderResults(); resetLockTimer(); });
-  $("exportButton").addEventListener("click", exportCsv);
+  $("exportButton").addEventListener("click", exportAttendanceWorkbook);
   $("viewMode").addEventListener("change", renderResults);
   $("viewMode").addEventListener("change", () => document.body.classList.toggle("wide-table-view", $("viewMode").value === "table"));
   $("studentPickerSearch").addEventListener("input", renderStudentCandidates);
   $("assignmentField").addEventListener("change", renderAssignmentFields);
   $("assignValueButton").addEventListener("click", async () => {
-    const index = state.selectedStudentIndex, field = $("assignmentField").value, value = $("assignmentValue").value.trim();
-    if (index < 0 || !state.rows[index] || !field) return;
+    const indices = [...state.selectedStudentIndices].filter((index) => state.rows[index]), field = $("assignmentField").value, value = $("assignmentValue").value.trim();
+    if (!indices.length || !field) return;
     if (!value) return setMessage("editStatus", "追加する文字列を入力してください。", true);
-    const record = state.rows[index], previousValue = record[field] ?? "";
-    record[field] = value;
+    const previousValues = indices.map((index) => state.rows[index][field] ?? "");
+    indices.forEach((index) => { state.rows[index][field] = value; });
     try {
-      await persist(); setMessage("editStatus", `${studentDisplayName(record)}さんの「${field}」を保存しました。`); $("assignmentValue").value = ""; renderResults(); resetLockTimer();
+      await persist(); setMessage("editStatus", `選択した${indices.length}人の「${field}」を保存しました。`); $("assignmentValue").value = ""; state.selectedStudentIndices.clear(); renderStudentCandidates(); renderResults(); resetLockTimer();
     } catch (error) {
-      record[field] = previousValue; setMessage("editStatus", `保存できませんでした: ${error.message}`, true);
+      indices.forEach((index, i) => { state.rows[index][field] = previousValues[i]; }); setMessage("editStatus", `保存できませんでした: ${error.message}`, true);
     }
   });
   $("addFieldForm").addEventListener("submit", async (event) => {
