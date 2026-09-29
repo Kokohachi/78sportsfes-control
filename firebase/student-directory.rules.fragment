@@ -7,8 +7,8 @@ deploy the complete ruleset with:
     firebase deploy --only firestore:rules --project thsportsfes
 
 The ruleset limits `student_directory/current` to the verified account
-`jh62231310@s.musashi.ed.jp`; other listed app data requires a verified
-Google account. Unlisted collections are denied.
+`jh62231310@s.musashi.ed.jp`. All other Firestore collections are publicly
+readable and writable without login.
 
 After deployment, verify the rules in the Firebase Console, then set
 `FIRESTORE_RULES_READY` to `true` in `public/student-search.js` and publish

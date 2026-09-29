@@ -1,13 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null
-        && request.auth.token.email_verified == true;
-    }
-
     function studentDirectoryOperator() {
-      return signedIn()
+      return request.auth != null
+        && request.auth.token.email_verified == true
         && request.auth.token.email == 'jh62231310@s.musashi.ed.jp';
     }
 
@@ -23,44 +19,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // App state is shared by the event, timetable, and ball-sports pages.
-    // The current clients use Google sign-in but do not all share one
-    // application-level allowlist, so access requires a verified account.
-    match /app_data/{documentId} {
-      allow read, write: if signedIn();
-
-      // Ball-sports backup history is stored below app_data in snapshots.
-      match /snapshots/{snapshotId} {
-        allow read, write: if signedIn();
-      }
+    // Everything outside the student directory is publicly accessible,
+    // including app data, backups, equipment, and history collections.
+    // Excluding the entire collection prevents this wildcard from exposing
+    // student_directory/current through Firestore's additive rule matching.
+    match /{collection}/{document=**} {
+      allow read, write: if collection != 'student_directory';
     }
-
-    // Older ball-sports deployments may still use this collection.
-    match /sportsfes/{documentId} {
-      allow read, write: if signedIn();
-    }
-
-    // Input history is visible to signed-in staff and written by the
-    // timetable and team-event pages.
-    match /input_history/{entryId} {
-      allow read, create: if signedIn();
-      allow update, delete: if false;
-    }
-
-    // Equipment checkout data is shared by the lending pages.
-    match /equipment/{equipmentId} {
-      allow read, write: if signedIn();
-    }
-
-    match /history/{entryId} {
-      allow read, create, delete: if signedIn();
-      allow update: if false;
-    }
-
-    match /settings/{documentId} {
-      allow read, write: if signedIn();
-    }
-
-    // All collections not listed above are denied by default.
   }
 }
