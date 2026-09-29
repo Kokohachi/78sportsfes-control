@@ -1,16 +1,16 @@
-// Add this match block inside the existing
-// service cloud.firestore { match /databases/{database}/documents { ... }
-// Do not deploy this fragment as a replacement for the project's full rules.
-match /student_directory/current {
-  allow read: if request.auth != null
-    && request.auth.token.email_verified == true
-    && request.auth.token.email == 'jh62231310@s.musashi.ed.jp';
-  allow create, update: if request.auth != null
-    && request.auth.token.email_verified == true
-    && request.auth.token.email == 'jh62231310@s.musashi.ed.jp'
-    && request.resource.data.rows is list
-    && request.resource.data.fields is list
-    && request.resource.data.updatedBy == request.auth.token.email
-    && request.resource.data.keys().hasOnly(['rows', 'fields', 'updatedAt', 'updatedBy']);
-  allow delete: if false;
-}
+Firestore rules are now maintained as one deployable ruleset at the repository
+root: `firestore.rules`. Do not paste this file into the Firebase Console.
+
+Deployment configuration is in `firebase.json`. From the repository root,
+deploy the complete ruleset with:
+
+    firebase deploy --only firestore:rules --project thsportsfes
+
+The ruleset limits `student_directory/current` to the verified account
+`jh62231310@s.musashi.ed.jp`; other listed app data requires a verified
+Google account. Unlisted collections are denied.
+
+After deployment, verify the rules in the Firebase Console, then set
+`FIRESTORE_RULES_READY` to `true` in `public/student-search.js` and publish
+the updated page. The client flag is intentionally still `false` until the
+rules have actually been deployed and checked.
