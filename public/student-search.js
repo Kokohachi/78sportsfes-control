@@ -371,7 +371,8 @@
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      stageImport(await readFile(file));
+      const imported = await readFile(file);
+      stageImport(imported.sheets);
     } catch (error) {
       console.error("Excel/CSVの読み込みに失敗しました:", error);
       $("importOptions").classList.add("hidden");
