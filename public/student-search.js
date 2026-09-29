@@ -269,23 +269,44 @@
     const container = $("results");
     container.replaceChildren();
     const displayFields = state.fields.filter((field) => !SENSITIVE_HINT.test(field));
-    results.slice(0, 300).forEach((record) => {
-      const article = document.createElement("article");
-      article.className = "student-card";
-      const nameField = displayFields.find((field) => /氏名/.test(field));
-      const familyField = displayFields.find((field) => /名字|姓/.test(field));
-      const givenField = displayFields.find((field) => /^名前$|名/.test(field));
-      const title = document.createElement("h3");
-      title.textContent = nameField ? String(record[nameField] ?? "（氏名なし）") : familyField || givenField ? `${record[familyField] ?? ""} ${record[givenField] ?? ""}`.trim() : String(record[displayFields[0]] ?? "生徒");
-      article.append(title);
-      const details = document.createElement("dl");
-      displayFields.filter((field) => field !== nameField && field !== familyField && field !== givenField && record[field] !== "").forEach((field) => {
-        const dt = document.createElement("dt"); dt.textContent = field;
-        const dd = document.createElement("dd"); dd.textContent = String(record[field]);
-        details.append(dt, dd);
+    const fullNameField = displayFields.find((field) => /^(氏名|生徒氏名|名前（フル）)$/.test(field.trim()));
+    const familyField = displayFields.find((field) => /^(名字|姓|姓（漢字）|名字（漢字）)$/.test(field.trim()));
+    const givenField = displayFields.find((field) => /^(名前|名|名（漢字）)$/.test(field.trim()));
+    const makeName = (record) => fullNameField ? String(record[fullNameField] ?? "（氏名なし）")
+      : familyField || givenField ? [record[familyField] ?? "", record[givenField] ?? ""].filter(Boolean).join(" ")
+        : String(record[displayFields[0]] ?? "生徒");
+    if ($("viewMode").value === "table") {
+      const wrapper = document.createElement("div"); wrapper.className = "table-scroll";
+      const table = document.createElement("table"); table.className = "student-table";
+      const head = document.createElement("thead"), headRow = document.createElement("tr");
+      displayFields.forEach((field) => { const th = document.createElement("th"); th.textContent = field; headRow.append(th); });
+      head.append(headRow); table.append(head);
+      const body = document.createElement("tbody");
+      results.slice(0, 300).forEach((record) => {
+        const row = document.createElement("tr");
+        displayFields.forEach((field) => {
+          const cell = document.createElement("td"), input = document.createElement("input");
+          input.type = "text"; input.value = String(record[field] ?? ""); input.setAttribute("aria-label", `${makeName(record)} ${field}`);
+          input.addEventListener("change", async () => {
+            const previousValue = record[field] ?? "";
+            record[field] = input.value.trim();
+            try { await persist(); setMessage("editStatus", "変更を保存しました。"); resetLockTimer(); }
+            catch (error) { record[field] = previousValue; input.value = String(previousValue); setMessage("editStatus", `保存できませんでした: ${error.message}`, true); }
+          });
+          cell.append(input); row.append(cell);
+        });
+        body.append(row);
       });
-      article.append(details);
-      container.append(article);
+      table.append(body); wrapper.append(table); container.append(wrapper);
+    } else results.slice(0, 300).forEach((record) => {
+      const article = document.createElement("article"); article.className = "student-card";
+      const title = document.createElement("h3"); title.textContent = makeName(record); article.append(title);
+      const details = document.createElement("dl");
+      displayFields.filter((field) => field !== fullNameField && record[field] !== "").forEach((field) => {
+        const dt = document.createElement("dt"); dt.textContent = field;
+        const dd = document.createElement("dd"); dd.textContent = String(record[field]); details.append(dt, dd);
+      });
+      article.append(details); container.append(article);
     });
     if (results.length > 300) {
       const note = document.createElement("p"); note.className = "muted"; note.textContent = "先頭300件を表示しています。絞り込んでください。"; container.append(note);
@@ -390,6 +411,20 @@
   $("cancelImport").addEventListener("click", () => { state.staged = null; $("importOptions").classList.add("hidden"); $("importFile").value = ""; });
   $("query").addEventListener("input", () => { renderResults(); resetLockTimer(); });
   $("exportButton").addEventListener("click", exportCsv);
+  $("viewMode").addEventListener("change", renderResults);
+  $("addFieldForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const field = $("newFieldName").value.trim();
+    if (!field) return;
+    if (state.fields.includes(field)) return setMessage("editStatus", "同じ名前の項目がすでにあります。", true);
+    const oldFields = state.fields, oldRows = state.rows.map((row) => ({ ...row }));
+    state.fields = [...state.fields, field]; state.rows.forEach((row) => { row[field] = ""; });
+    try {
+      await persist(); $("newFieldName").value = ""; setMessage("editStatus", `「${field}」を追加して保存しました。`); renderDirectory();
+    } catch (error) {
+      state.fields = oldFields; state.rows = oldRows; setMessage("editStatus", `保存できませんでした: ${error.message}`, true);
+    }
+  });
   $("lockButton").addEventListener("click", () => lock());
   ["pointerdown", "keydown"].forEach((eventName) => document.addEventListener(eventName, () => { if (state.user) resetLockTimer(); }, { passive: true }));
 })();

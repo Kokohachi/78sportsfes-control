@@ -42,6 +42,8 @@ input:focus, select:focus { outline: 3px solid rgb(124 88 219 / 18%); border-col
 .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 0.65rem; }
 .filter-control { display: grid; gap: 0.3rem; min-width: 0; color: #64748b; font-size: 0.72rem; font-weight: 800; }
 .filter-control select, .filter-control input { width: 100%; }
+.view-mode-label { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 1rem; color: #475569; font-size: 0.8rem; font-weight: 800; }
+.view-mode-label select { min-width: 10rem; }
 .result-count { margin: 1rem 0 0.6rem; color: #475569; font-size: 0.8rem; font-weight: 850; }
 .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 0.65rem; }
 .student-card { min-width: 0; padding: 0.9rem; border: 1px solid var(--line); border-radius: 0.75rem; background: #fbfcfe; }
@@ -49,6 +51,16 @@ input:focus, select:focus { outline: 3px solid rgb(124 88 219 / 18%); border-col
 .student-card dl { display: grid; grid-template-columns: minmax(5rem, 0.8fr) minmax(0, 1.2fr); gap: 0.35rem 0.6rem; margin: 0; font-size: 0.76rem; }
 .student-card dt { color: var(--muted); }
 .student-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-weight: 700; }
+.table-scroll { max-width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 0.65rem; }
+.student-table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 0.8rem; }
+.student-table th, .student-table td { padding: 0.45rem; border-bottom: 1px solid var(--line); text-align: left; }
+.student-table th { position: sticky; top: 0; background: #f3f6fb; }
+.student-table td input { width: 100%; min-width: 8rem; min-height: 2.2rem; padding: 0.3rem 0.45rem; border-color: transparent; background: transparent; }
+.student-table td input:focus { border-color: var(--accent); background: white; }
+.field-editor-panel .muted { margin: -0.3rem 0 0.8rem; }
+.add-field-form { display: flex; align-items: end; flex-wrap: wrap; gap: 0.6rem; }
+.add-field-form label { display: grid; gap: 0.3rem; color: #475569; font-size: 0.76rem; font-weight: 750; }
+.add-field-form input { min-width: min(20rem, 75vw); }
 .field-choices { display: flex; flex-wrap: wrap; gap: 0.25rem 0.8rem; margin-bottom: 0.8rem; }
 .check-label { display: inline-flex; align-items: center; gap: 0.35rem; color: #475569; font-size: 0.78rem; }
 .check-label input { min-height: auto; width: 1rem; height: 1rem; accent-color: var(--accent); }
