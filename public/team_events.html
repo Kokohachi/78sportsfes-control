@@ -521,8 +521,8 @@
           });
           this.setStatus('online', 'オンライン');
         } catch (e) {
-          console.warn('Firestore保存失敗:', e);
-          this.setStatus('syncing', '待機中');
+          console.error('[Firestore] 団体競技データの保存に失敗しました:', e);
+          this.setStatus('offline', `同期失敗: ${e?.code || e?.message || 'unknown error'}`);
         }
       },
       async load(key, defaultValue) {
@@ -545,8 +545,8 @@
             this.setStatus('online', 'オンライン');
           }
         } catch (e) {
-          console.warn('Firestore読込失敗:', e);
-          this.setStatus('syncing', '待機中');
+          console.error('[Firestore] 団体競技データの読み込みに失敗しました:', e);
+          this.setStatus('offline', `同期失敗: ${e?.code || e?.message || 'unknown error'}`);
         }
         return localData;
       },
@@ -559,8 +559,8 @@
             callback(data);
           }
         }, err => {
-          console.warn('同期エラー:', err);
-          this.setStatus('syncing', '待機中');
+          console.error('[Firestore] 団体競技データのリアルタイム同期に失敗しました:', err);
+          this.setStatus('offline', `同期失敗: ${err?.code || err?.message || 'unknown error'}`);
         });
       },
       async addHistory(entry) {
@@ -920,6 +920,9 @@
           isAuthed = checkAuthorized(currentUser);
           updateAuthUI();
         }
+      }, err => {
+        console.error('[Firestore] 認証設定の同期に失敗しました:', err);
+        Sync.setStatus('offline', `同期失敗: ${err?.code || err?.message || 'unknown error'}`);
       });
       scheduleData = await Sync.load('team_events_data_v4', getDefaultData());
       renderTimetable();
