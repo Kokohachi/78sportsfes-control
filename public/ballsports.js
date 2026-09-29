@@ -99,9 +99,11 @@ function splitTeamCompetitionCards(schedule) {
     });
 }
 const INITIAL_SCHEDULE = splitTeamCompetitionCards(splitTeamCompetitionBlocks(Array.isArray(SPORTS_PAGE_CONFIG.initialSchedule) ? SPORTS_PAGE_CONFIG.initialSchedule : DEFAULT_INITIAL_SCHEDULE));
-const LEAGUE_PAIRS = [["A", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "D"]];
+const LEAGUE_PAIRS = [["A", "B"], ["C", "D"], ["A", "C"], ["B", "D"], ["A", "D"], ["B", "C"]];
+const TEAM_DAY_LEAGUE_PAIRS = [["A", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "D"]];
 const TOURNAMENT_PAIRS = [["準決勝1", "A", "B"], ["準決勝2", "C", "D"], ["3位決定戦", "準決勝1の敗者", "準決勝2の敗者"], ["決勝", "準決勝1の勝者", "準決勝2の勝者"]];
 function getFormatMatchDefinitions(format) {
+    const leaguePairs = SPORTS_PAGE_CONFIG.splitTeamBlocks ? TEAM_DAY_LEAGUE_PAIRS : LEAGUE_PAIRS;
     if (format === "tournament")
         return TOURNAMENT_PAIRS;
     if (format === "exhibition")
@@ -109,10 +111,42 @@ function getFormatMatchDefinitions(format) {
     if (format === "single")
         return [["単発試合", "A", "B"]];
     if (format === "table_tennis_round_robin") {
-        return Array.from({ length: 3 }, (_, roundIndex) => LEAGUE_PAIRS.map((pair, pairIndex) => [`${roundIndex + 1}回戦 第${pairIndex + 1}試合`, pair[0], pair[1]]))
+        return Array.from({ length: 3 }, (_, roundIndex) => leaguePairs.map((pair, pairIndex) => [`${roundIndex + 1}回戦 第${pairIndex + 1}試合`, pair[0], pair[1]]))
             .flat();
     }
-    return LEAGUE_PAIRS.map((pair, index) => [`第${index + 1}試合`, pair[0], pair[1]]);
+    return leaguePairs.map((pair, index) => [`第${index + 1}試合`, pair[0], pair[1]]);
+}
+function applyFourTeamLeaguePairOrder(schedule) {
+    if (SPORTS_PAGE_CONFIG.splitTeamBlocks || !Array.isArray(schedule))
+        return { schedule, changed: false };
+    const groups = new Map();
+    schedule.forEach((match) => {
+        if (match?.format !== "league")
+            return;
+        const groupId = match.competitionId ?? match.parentBlockId ?? match.blockId;
+        if (!groupId)
+            return;
+        const key = `${groupId}|${match.sport ?? ""}|${match.grade ?? ""}`;
+        if (!groups.has(key))
+            groups.set(key, []);
+        groups.get(key).push(match);
+    });
+    let changed = false;
+    groups.forEach((matches) => {
+        const teams = new Set(matches.flatMap((match) => [match.teamA, match.teamB]).filter((team) => typeof team === "string" && team));
+        if (matches.length !== 6 || teams.size !== 4 || !["A", "B", "C", "D"].every((team) => teams.has(team)))
+            return;
+        const ordered = [...matches].sort((a, b) => String(a.start ?? "").localeCompare(String(b.start ?? "")) || String(a.id ?? "").localeCompare(String(b.id ?? "")));
+        ordered.forEach((match, index) => {
+            const [teamA, teamB] = LEAGUE_PAIRS[index];
+            if (match.teamA !== teamA || match.teamB !== teamB) {
+                match.teamA = teamA;
+                match.teamB = teamB;
+                changed = true;
+            }
+        });
+    });
+    return { schedule, changed };
 }
 function parseTimeMinutes(value) {
     if (typeof value !== "string" || !value.includes(":"))
@@ -315,6 +349,9 @@ let appState = {
     isAdmin: false,
     announcement: loadPersistedAnnouncement()
 };
+const initialPairOrderMigration = applyFourTeamLeaguePairOrder(appState.schedule);
+if (initialPairOrderMigration.changed)
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(appState.schedule));
 window.appState = appState;
 let firebaseSync = {
     app: null,
@@ -475,19 +512,23 @@ function applyRemoteDocumentData(data) {
     const preparedSchedule = mergeTeamScheduleDefaults(normalizedRemoteSchedule.length > 0 ? normalizedRemoteSchedule : remoteSchedule);
     const needsNormalize = preparedSchedule.some((match) => !match.blockId || match.court === "上グラウンド" || match.court === "下グラウンド" || !["BEFORE", "IN_PROGRESS", "FINISHED"].includes(match.status ?? ""));
     const hasConfiguredBaseEvents = Array.isArray(SPORTS_PAGE_CONFIG.initialSchedule) && preparedSchedule.some((match) => SPORTS_PAGE_CONFIG.initialSchedule.some((configured) => configured.id === match.id));
-    const nextSchedule = SPORTS_PAGE_CONFIG.splitTeamBlocks
+    const normalizedSchedule = SPORTS_PAGE_CONFIG.splitTeamBlocks
         ? hasConfiguredBaseEvents ? splitTeamCompetitionCards(splitTeamCompetitionBlocks(preparedSchedule)) : rebuildStoredTeamSchedule(preparedSchedule)
         : needsNormalize ? normalizeCompetitionSchedule(preparedSchedule) : preparedSchedule;
+    const pairOrderMigration = applyFourTeamLeaguePairOrder(normalizedSchedule);
+    const nextSchedule = pairOrderMigration.schedule;
     const nextAnnouncement = normalizeRemoteAnnouncement(data);
     const currentSignature = JSON.stringify({ schedule: appState.schedule ?? [], announcement: appState.announcement });
     const nextSignature = JSON.stringify({ schedule: nextSchedule ?? [], announcement: nextAnnouncement });
-    if (currentSignature === nextSignature) {
+    if (currentSignature === nextSignature && !pairOrderMigration.changed) {
         return true;
     }
     appState.schedule = nextSchedule;
     appState.announcement = nextAnnouncement;
     localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(appState.schedule));
     localStorage.setItem(ANNOUNCEMENT_STORAGE_KEY, appState.announcement);
+    if (pairOrderMigration.changed)
+        saveState();
     updateSyncStatus("同期済み", "success");
     renderCourtDelaySummary();
     renderTimeline();
