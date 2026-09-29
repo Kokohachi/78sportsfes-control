@@ -17,7 +17,8 @@
   const DIRECTORY_DOC = "student_directory/current";
   const MAX_DIRECTORY_BYTES = 850_000;
   const ID_HINT = /4桁番号|学籍番号|生徒番号|個人番号|student.?id|^id$/i;
-  const SENSITIVE_HINT = /mail|メール|電話|phone|住所|address/i;
+  const SENSITIVE_HINT = /mail|メール|メアド|gmail|電話|phone|住所|address/i;
+  const FREE_TEXT_FILTER_HINT = /4桁番号|四桁番号|学籍番号|生徒番号|個人番号|名字|姓|名前|氏名|メアド|メール|gmail|e-mail|^名$/i;
   const SPORT_HINT = /球技|競技|種目|sport/i;
   const state = { rows: [], fields: [], filters: {}, staged: null, lockTimer: 0, db: null, auth: null, user: null, unsubscribe: null };
   const $ = (id) => document.getElementById(id);
@@ -101,8 +102,20 @@
   function cleanGrid(grid) {
     const headerIndex = grid.findIndex((row) => row?.some((value) => String(value ?? "").trim()));
     if (headerIndex < 0) throw new Error("列名を読み取れませんでした。");
-    const headers = grid[headerIndex].map((value, index) => String(value ?? "").trim() || `列${index + 1}`);
-    const records = grid.slice(headerIndex + 1).map((values) => Object.fromEntries(headers.map((header, index) => [header, String(values?.[index] ?? "").trim()]))).filter((record) => Object.values(record).some(Boolean));
+    const sourceHeaders = grid[headerIndex];
+    const sourceRows = grid.slice(headerIndex + 1);
+    const activeColumns = sourceHeaders.map((_, index) => index).filter((index) =>
+      String(sourceHeaders[index] ?? "").trim() || sourceRows.some((row) => String(row?.[index] ?? "").trim())
+    );
+    const headers = activeColumns.map((index) => {
+      const header = String(sourceHeaders[index] ?? "").trim();
+      if (header) return header;
+      if (index > 0 && /読み|よみ|ふりがな/i.test(String(sourceHeaders[index - 1] ?? ""))) return "名前読み";
+      return `列${index + 1}`;
+    });
+    const records = sourceRows.map((values) => Object.fromEntries(activeColumns.map((sourceIndex, index) =>
+      [headers[index], String(values?.[sourceIndex] ?? "").trim()]
+    ))).filter((record) => Object.values(record).some(Boolean));
     if (!records.length) throw new Error("名簿の行が見つかりませんでした。");
     return { headers, records };
   }
@@ -136,8 +149,8 @@
     if (!sheet) return;
     $("keyField").innerHTML = sheet.headers.map((header) => `<option value="${escapeHtml(header)}">${escapeHtml(header)}</option>`).join("");
     $("keyField").value = suggestedKey(sheet.headers);
-    $("importMode").value = "replace";
-    $("keyField").closest("label").classList.add("hidden");
+    $("importMode").value = state.rows.length ? "merge" : "replace";
+    $("keyField").closest("label").classList.toggle("hidden", $("importMode").value !== "merge");
   }
 
   function escapeHtml(value) {
@@ -153,13 +166,21 @@
     const previousRows = state.rows;
     const previousFields = state.fields;
     if (mode === "merge") {
-      const byKey = new Map(state.rows.map((record) => [String(record[keyField] ?? "").trim(), record]).filter(([key]) => key));
+      const mergedRows = state.rows.map((record) => ({ ...record }));
+      const indexByKey = new Map();
+      mergedRows.forEach((record, index) => {
+        const key = String(record[keyField] ?? "").trim();
+        if (key && !indexByKey.has(key)) indexByKey.set(key, index);
+      });
       sheet.records.forEach((incoming) => {
         const key = String(incoming[keyField] ?? "").trim();
-        if (key && byKey.has(key)) Object.assign(byKey.get(key), incoming);
-        else byKey.set(key || `__row_${crypto.randomUUID()}`, incoming);
+        if (key && indexByKey.has(key)) Object.assign(mergedRows[indexByKey.get(key)], incoming);
+        else {
+          const index = mergedRows.push(incoming) - 1;
+          if (key) indexByKey.set(key, index);
+        }
       });
-      state.rows = [...byKey.values()];
+      state.rows = mergedRows;
       state.fields = [...new Set([...state.fields, ...sheet.headers])];
     } else {
       state.rows = sheet.records;
@@ -201,14 +222,14 @@
       label.className = "filter-control";
       label.textContent = field;
       let input;
-      if (distinct.length <= 80) {
+      if (FREE_TEXT_FILTER_HINT.test(field)) {
+        input = document.createElement("input");
+        input.type = "search";
+        input.placeholder = `${field}で検索`;
+      } else {
         input = document.createElement("select");
         input.add(new Option("すべて", ""));
         distinct.forEach((value) => input.add(new Option(String(value), String(value))));
-      } else {
-        input = document.createElement("input");
-        input.type = "search";
-        input.placeholder = `${field}で絞り込み`;
       }
       input.dataset.field = field;
       input.value = state.filters[field] ?? "";
