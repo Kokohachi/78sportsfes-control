@@ -516,8 +516,9 @@ function subscribeToRemoteData() {
         if (!docSnap.exists)
             return;
         applyRemoteDocumentData(docSnap.data());
-    }, () => {
-        updateSyncStatus("待機中", "sky");
+    }, (error) => {
+        console.error("[Firebase リアルタイム同期失敗]", error);
+        updateSyncStatus(`同期失敗: ${error?.code || error?.message || "unknown error"}`, "warning");
     });
 }
 async function initFirebaseSync() {
@@ -570,7 +571,7 @@ async function initFirebaseSync() {
         console.error("[Firebase 初期化失敗]", err);
         firebaseSync.initialized = false;
         firebaseSync.online = false;
-        updateSyncStatus("オフライン", "warning");
+        updateSyncStatus(`オフライン: ${err?.code || err?.message || "unknown error"}`, "warning");
     }
 }
 async function syncStateToFirebase() {
@@ -596,7 +597,7 @@ async function syncStateToFirebase() {
     }
     catch (err) {
         console.error("[Firebase 同期エラー]", err);
-        updateSyncStatus("同期失敗", "warning");
+        updateSyncStatus(`同期失敗: ${err?.code || err?.message || "unknown error"}`, "warning");
     }
     finally {
         firebaseWriteInFlight = false;

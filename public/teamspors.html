@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>第78回体育祭｜団体競技日 進行本部</title>
+    <script>document.documentElement.classList.add('page-password-locked');</script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -30,8 +31,26 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./ballsports.css">
+    <style>
+        html.page-password-locked body > :not(#teamSportsPasswordGate) { visibility: hidden !important; }
+        html.page-password-locked, html.page-password-locked body { min-height: 100%; overflow: hidden; }
+        #teamSportsPasswordGate { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 1.5rem; background: #080c14; color: #f8fafc; }
+        #teamSportsPasswordGate[hidden] { display: none; }
+    </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+
+    <section id="teamSportsPasswordGate" aria-labelledby="teamSportsPasswordTitle">
+        <form id="teamSportsPasswordForm" class="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center shadow-2xl">
+            <div class="mb-3 text-3xl" aria-hidden="true">🔒</div>
+            <h1 id="teamSportsPasswordTitle" class="mb-2 text-xl font-black">団体競技日</h1>
+            <p class="mb-5 text-sm text-slate-400">続けるにはパスワードを入力してください。</p>
+            <label class="sr-only" for="teamSportsPasswordInput">パスワード</label>
+            <input id="teamSportsPasswordInput" type="password" autocomplete="current-password" required autofocus placeholder="パスワード" class="mb-3 w-full rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-center text-white outline-none focus:border-sky-400">
+            <p id="teamSportsPasswordError" class="mb-3 hidden text-sm text-rose-400" role="alert">パスワードが違います。</p>
+            <button type="submit" class="w-full rounded-xl bg-sky-500 px-4 py-3 font-bold text-slate-950 hover:bg-sky-400">開く</button>
+        </form>
+    </section>
 
     <!-- アナウンス緊急テロップ -->
     <div id="announcementBar" class="bg-rose-600 text-white py-1.5 px-4 hidden relative z-50 shadow-md">
@@ -837,6 +856,33 @@
             { label: "H3 一回戦", group: "H3", order: "A/B", teams: ["A", "B"] }, { label: "H3 二回戦", group: "H3", order: "C/D", teams: ["C", "D"] }, { label: "H3 決勝", group: "H3", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] }
         ] });
     </script>
-    <script src="./ballsports.js?v=20260928T3" defer></script>
+    <script>
+        (() => {
+            const gate = document.getElementById('teamSportsPasswordGate');
+            const form = document.getElementById('teamSportsPasswordForm');
+            const input = document.getElementById('teamSportsPasswordInput');
+            const error = document.getElementById('teamSportsPasswordError');
+            const expected = '4f5aff7cb424bcaeb6efef7e46f7520592c0b81714b529c0eb280f5086a9dcad';
+            if (sessionStorage.getItem('teamSportsPageUnlocked') === 'true') {
+                gate.hidden = true;
+                document.documentElement.classList.remove('page-password-locked');
+            }
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const bytes = new TextEncoder().encode(input.value);
+                const digest = await crypto.subtle.digest('SHA-256', bytes);
+                const actual = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+                if (actual !== expected) {
+                    error.classList.remove('hidden');
+                    input.select();
+                    return;
+                }
+                sessionStorage.setItem('teamSportsPageUnlocked', 'true');
+                gate.hidden = true;
+                document.documentElement.classList.remove('page-password-locked');
+            });
+        })();
+    </script>
+    <script src="./ballsports.js?v=20260928T4" defer></script>
 </body>
 </html>
