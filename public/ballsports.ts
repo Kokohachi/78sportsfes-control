@@ -26,6 +26,7 @@ type Match = {
   blockId?: string;
   blockTitle?: string;
   pointRule?: [number, number, number, number];
+  baseballCombined?: boolean;
 };
 
 declare const firebase: any;
@@ -74,8 +75,7 @@ const INITIAL_SCHEDULE: Match[] = [
   { id: "m5", court: "上グラ", sport: "サッカー", grade: "高2", title: "第5試合", format: "league", teamA: "B", teamB: "C", scoreA: null, scoreB: null, start: "12:35", end: "13:42", referee: "相山", staff: "進行", status: "BEFORE", offsetMins: 0 },
   { id: "m6", court: "上グラ", sport: "サッカー", grade: "高3", title: "第6試合", format: "league", teamA: "C", teamB: "D", scoreA: null, scoreB: null, start: "13:50", end: "15:00", referee: "相山", staff: "進行", status: "BEFORE", offsetMins: 0 },
   { id: "m7", court: "下グラ", sport: "アルティメット", grade: "中2", title: "第1試合", format: "league", teamA: "A", teamB: "D", scoreA: null, scoreB: null, start: "08:20", end: "09:12", referee: "田中", staff: "進行", status: "BEFORE", offsetMins: 0 },
-  { id: "m8", court: "下グラ", sport: "野球", grade: "高3", title: "第1試合", format: "tournament", teamA: "B", teamB: "C", scoreA: null, scoreB: null, start: "11:25", end: "12:25", referee: "田中", staff: "進行", status: "BEFORE", offsetMins: 0 },
-  { id: "m9", court: "下グラ", sport: "野球", grade: "高3", title: "第2試合", format: "tournament", teamA: "A", teamB: "D", scoreA: null, scoreB: null, start: "13:00", end: "14:00", referee: "田中", staff: "進行", status: "BEFORE", offsetMins: 0 },
+  { id: "m8", court: "下グラ", sport: "野球", grade: "高3", title: "野球トーナメント", format: "tournament", teamA: "A+B組", teamB: "C+D組", scoreA: null, scoreB: null, start: "11:25", end: "12:25", referee: "田中", staff: "進行", status: "BEFORE", offsetMins: 0, pointRule: [150, 100, 100, 100], baseballCombined: true },
   { id: "m10", court: "体育館", sport: "バスケ", grade: "中3", title: "第1試合", format: "league", teamA: "A", teamB: "B", scoreA: null, scoreB: null, start: "08:20", end: "09:17", referee: "渡辺", staff: "進行", status: "BEFORE", offsetMins: 0 },
   { id: "m11", court: "体育館", sport: "バスケ", grade: "高2", title: "第2試合", format: "league", teamA: "C", teamB: "D", scoreA: null, scoreB: null, start: "09:45", end: "10:42", referee: "渡辺", staff: "進行", status: "BEFORE", offsetMins: 0 },
   { id: "m12", court: "体育館", sport: "バスケ", grade: "中1", title: "第3試合", format: "league", teamA: "A", teamB: "C", scoreA: null, scoreB: null, start: "10:50", end: "11:47", referee: "渡辺", staff: "進行", status: "BEFORE", offsetMins: 0 },
@@ -108,11 +108,12 @@ function getFormatMatchDefinitions(format: MatchFormat): Array<[string, string, 
 
 function parseTimeMinutes(value: string | undefined): number {
   if (typeof value !== "string" || !value.includes(":")) return 0;
-  const [hoursText, minutesText = "0"] = value.split(":");
+  const [hoursText, minutesText = "0", secondsText = "0"] = value.split(":");
   const hours = Number(hoursText);
   const minutes = Number(minutesText);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
-  return hours * 60 + minutes;
+  const seconds = Number(secondsText);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || !Number.isFinite(seconds)) return 0;
+  return hours * 60 + minutes + seconds / 60;
 }
 
 function normalizeCompetitionSchedule(sourceSchedule: Match[]): Match[] {
@@ -588,10 +589,11 @@ function saveState(): void {
 }
 
 function calcAdjustedTime(timeStr: string, offsetMins: number): string {
-  const [h, m] = timeStr.split(":").map(Number);
+  const [h, m, s = 0] = timeStr.split(":").map(Number);
   const d = new Date();
-  d.setHours(h, m + offsetMins, 0, 0);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  d.setHours(h, m, s + Math.round(offsetMins * 60), 0);
+  const base = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return d.getSeconds() ? `${base}:${String(d.getSeconds()).padStart(2, "0")}` : base;
 }
 
 function switchTab(tabName: string): void {
@@ -903,6 +905,8 @@ function isCompetitionComplete(matches: Match[], format: MatchFormat): boolean {
   if (format === "exhibition" || matches.length === 0) return false;
   const hasResult = (match: Match) => match.status === "FINISHED" && match.scoreA !== null && match.scoreB !== null;
   if (format === "tournament") {
+    const baseball = matches.find((match) => match.baseballCombined);
+    if (baseball) return hasResult(baseball) && baseball.scoreA !== baseball.scoreB;
     const final = matches.find((match) => match.title === "決勝");
     const thirdPlace = matches.find((match) => match.title === "3位決定戦");
     return !!final && !!thirdPlace && hasResult(final) && hasResult(thirdPlace);
@@ -1176,6 +1180,15 @@ function renderResultsTab(): void {
 
 function calculateCompetitionStandings(matches: Match[], format: MatchFormat): Array<{ team: string; wins: number; draws: number; losses: number; points: number; rank: number; rankPoints: number }> {
   if (format === "exhibition") return [];
+  const baseball = matches.find((match) => match.baseballCombined);
+  if (baseball) {
+    const complete = isCompetitionComplete(matches, format);
+    const winningSide = complete ? (baseball.scoreA! > baseball.scoreB! ? ["A", "B"] : ["C", "D"]) : [];
+    return ["A", "B", "C", "D"].map((team) => {
+      const won = winningSide.includes(team);
+      return { team, wins: won ? 1 : 0, draws: 0, losses: complete && !won ? 1 : 0, points: won ? 1 : 0, rank: complete ? (won ? 1 : 3) : 0, rankPoints: complete ? (won ? 150 : 100) : 0 };
+    });
+  }
   if (format === "tournament") return calculateTournamentStandings(matches);
 
   const teams = Array.from(new Set(matches.flatMap((match) => [match.teamA, match.teamB]).filter(Boolean)));
@@ -1386,9 +1399,12 @@ function getAddPointRule(): [number, number, number, number] {
 }
 
 function addMinutesToTime(time: string, minutes: number): string {
-  const [hours, mins] = time.split(":").map(Number);
-  const total = hours * 60 + mins + minutes;
-  return `${String(Math.floor((total % 1440 + 1440) % 1440 / 60)).padStart(2, "0")}:${String((total % 60 + 60) % 60).padStart(2, "0")}`;
+  const [hours, mins, seconds = 0] = time.split(":").map(Number);
+  const total = hours * 3600 + mins * 60 + seconds + Math.round(minutes * 60);
+  const wrapped = ((total % 86400) + 86400) % 86400;
+  const result = `${String(Math.floor(wrapped / 3600)).padStart(2, "0")}:${String(Math.floor((wrapped % 3600) / 60)).padStart(2, "0")}`;
+  const remainder = wrapped % 60;
+  return remainder ? `${result}:${String(remainder).padStart(2, "0")}` : result;
 }
 
 function createCompetitionBlock(): void {
@@ -1496,7 +1512,8 @@ function setModalDelay(val: number): void {
 function adjustModalDelay(diff: number): void {
   const input = document.getElementById("inputDelayMinutes") as HTMLInputElement | null;
   if (!input) return;
-  input.value = String((parseInt(input.value, 10) || 0) + diff);
+  const step = Number(input.step) || 1;
+  input.value = String((Number.parseFloat(input.value) || 0) + Math.sign(diff) * step);
 }
 
 function saveModalData(): void {
@@ -1504,7 +1521,7 @@ function saveModalData(): void {
   const m = appState.schedule.find((item) => item.id === matchId);
   if (!m) return;
 
-  const newOffset = parseInt((document.getElementById("inputDelayMinutes") as HTMLInputElement).value, 10) || 0;
+  const newOffset = Number.parseFloat((document.getElementById("inputDelayMinutes") as HTMLInputElement).value) || 0;
   const isInProgress = appState.selectedModalStatus === "IN_PROGRESS";
   const oldOffset = isInProgress ? (m.endOffsetMins ?? 0) : m.offsetMins;
   const diff = newOffset - oldOffset;
