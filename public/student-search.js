@@ -13,7 +13,7 @@
   };
   const AUTHORIZED_EMAIL = "jh62231310@s.musashi.ed.jp";
   // Enable only after merging the matching rule into Firebase Console and checking for broad wildcard grants.
-  const FIRESTORE_RULES_READY = false;
+  const FIRESTORE_RULES_READY = true;
   const DIRECTORY_DOC = "student_directory/current";
   const MAX_DIRECTORY_BYTES = 850_000;
   const ID_HINT = /4桁番号|学籍番号|生徒番号|個人番号|student.?id|^id$/i;
