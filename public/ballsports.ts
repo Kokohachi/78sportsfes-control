@@ -101,7 +101,7 @@ function getFormatMatchDefinitions(format: MatchFormat): Array<[string, string, 
   if (format === "exhibition") return [["エキシビション", "優勝チーム", "教師"]];
   if (format === "single") return [["単発試合", "A", "B"]];
   if (format === "table_tennis_round_robin") {
-    return Array.from({ length: 3 }, (_, roundIndex) => LEAGUE_PAIRS.map((pair, pairIndex): [string, string, string] => [`${roundIndex + 1}回戦 第${pairIndex + 1}試合`, pair[0], pair[1]])).flat();
+    return Array.from({ length: 6 }, (_, roundIndex) => LEAGUE_PAIRS.map((pair, pairIndex): [string, string, string] => [`${roundIndex + 1}回戦 第${pairIndex + 1}試合`, pair[0], pair[1]])).flat();
   }
   return LEAGUE_PAIRS.map((pair, index): [string, string, string] => [`第${index + 1}試合`, pair[0], pair[1]]);
 }
@@ -1442,8 +1442,8 @@ function createCompetitionBlock(): void {
       teamB: definition[2],
       scoreA: null,
       scoreB: null,
-      start: addMinutesToTime(start, index * (duration + 5)),
-      end: addMinutesToTime(start, index * (duration + 5) + duration),
+      start: addMinutesToTime(start, (scheduleFormat === "table_tennis_round_robin" ? Math.floor(index / 6) : index) * (duration + 5)),
+      end: addMinutesToTime(start, (scheduleFormat === "table_tennis_round_robin" ? Math.floor(index / 6) : index) * (duration + 5) + duration),
       referee: "",
       staff: "",
       status: "BEFORE",

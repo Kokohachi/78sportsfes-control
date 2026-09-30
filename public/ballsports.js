@@ -111,7 +111,7 @@ function getFormatMatchDefinitions(format) {
     if (format === "single")
         return [["単発試合", "A", "B"]];
     if (format === "table_tennis_round_robin") {
-        return Array.from({ length: 3 }, (_, roundIndex) => leaguePairs.map((pair, pairIndex) => [`${roundIndex + 1}回戦 第${pairIndex + 1}試合`, pair[0], pair[1]]))
+        return Array.from({ length: 6 }, (_, roundIndex) => leaguePairs.map((pair, pairIndex) => [`${roundIndex + 1}回戦 第${pairIndex + 1}試合`, pair[0], pair[1]]))
             .flat();
     }
     return leaguePairs.map((pair, index) => [`第${index + 1}試合`, pair[0], pair[1]]);
