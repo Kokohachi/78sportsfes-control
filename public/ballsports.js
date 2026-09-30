@@ -1385,7 +1385,7 @@ function isCompetitionComplete(matches, format) {
     if (format === "tournament") {
         const baseball = matches.find((match) => match.baseballCombined);
         if (baseball)
-            return hasResult(baseball) && baseball.scoreA !== baseball.scoreB && Object.keys(baseball.rankPointsByTeam ?? {}).length === 4;
+            return hasResult(baseball) && baseball.scoreA !== baseball.scoreB;
         const race = matches.find((match) => match.tournamentType === "race");
         if (race)
             return Array.isArray(race.rankOrder) && race.rankOrder.length === 4;
