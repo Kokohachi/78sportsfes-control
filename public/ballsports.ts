@@ -389,6 +389,7 @@ function applyRemoteDocumentData(data: any): boolean {
   renderTimeline();
   renderResultsTab();
   calculateScoresAndRanks();
+  if (!(document.getElementById("sec-gantt") as HTMLElement | null)?.classList.contains("hidden")) renderGantt();
   if (appState.announcement) showAnnouncement(appState.announcement);
   else document.getElementById("announcementBar")?.classList.add("hidden");
   console.log("[同期完了]", appState.schedule.length, "件");
@@ -1771,6 +1772,7 @@ async function restoreBackup(backupId: string): Promise<void> {
     renderTimeline();
     renderResultsTab();
     calculateScoresAndRanks();
+    if (!(document.getElementById("sec-gantt") as HTMLElement | null)?.classList.contains("hidden")) renderGantt();
     (window as any).populateBlockSelectors?.();
     (window as any).renderTimeConfigEditor?.();
     if (appState.announcement) showAnnouncement(appState.announcement);

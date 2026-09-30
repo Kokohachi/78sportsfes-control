@@ -587,6 +587,8 @@ function applyRemoteDocumentData(data) {
     renderTimeline();
     renderResultsTab();
     calculateScoresAndRanks();
+    if (!document.getElementById("sec-gantt")?.classList.contains("hidden"))
+        renderGantt();
     if (appState.announcement)
         showAnnouncement(appState.announcement);
     else
@@ -2789,6 +2791,8 @@ async function restoreBackup(backupId) {
         renderTimeline();
         renderResultsTab();
         calculateScoresAndRanks();
+        if (!document.getElementById("sec-gantt")?.classList.contains("hidden"))
+            renderGantt();
         populateBlockSelectors();
         renderTimeConfigEditor();
         if (appState.announcement)
