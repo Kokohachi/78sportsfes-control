@@ -831,6 +831,10 @@
             { label: "二回戦", order: "A/B", teams: ["A", "B"], resultMode: "points" },
             { label: "決勝", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"], resultMode: "points" }
         ] });
+        configure("team_05", { matchCards: [
+            { label: "全学年 同時", group: "全学年", order: "A/B/C/D 同時", teams: ["A", "B", "C", "D"], resultMode: "time" },
+            { label: "順位決定", group: "全学年", order: "A/B/C/D 順位決定", teams: ["A", "B", "C", "D"], resultMode: "time" }
+        ] });
         configure("team_06", { format: "exhibition", pointRule: [0, 0, 0, 0], matchCards: [
             { label: "第一試合・運動部", group: "第一試合", order: "運動部", teams: ["運動部"], resultMode: "time", exhibition: true },
             { label: "第二試合・文化部①", group: "第二試合", order: "文化部①", teams: ["文化部①"], resultMode: "time", exhibition: true },
@@ -855,6 +859,10 @@
         configure("team_11", { matchCards: [
             { label: "H2 一回戦", group: "H2", order: "A/B", teams: ["A", "B"] }, { label: "H2 二回戦", group: "H2", order: "C/D", teams: ["C", "D"] }, { label: "H2 決勝", group: "H2", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] },
             { label: "H3 一回戦", group: "H3", order: "A/B", teams: ["A", "B"] }, { label: "H3 二回戦", group: "H3", order: "C/D", teams: ["C", "D"] }, { label: "H3 決勝", group: "H3", order: "一回戦勝者／二回戦勝者", teams: ["一回戦勝者", "二回戦勝者"] }
+        ] });
+        configure("team_12", { matchCards: [
+            { label: "応援団長 同時", group: "応援団長", order: "A/B/C/D 同時", teams: ["A", "B", "C", "D"], resultMode: "time" },
+            { label: "順位決定", group: "応援団長", order: "A/B/C/D 順位決定", teams: ["A", "B", "C", "D"], resultMode: "time" }
         ] });
     </script>
     <script>
@@ -883,6 +891,43 @@
                 document.documentElement.classList.remove('page-password-locked');
             });
         })();
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const openMatchModal = window.openModal;
+            const saveMatchModal = window.saveModalData;
+            if (typeof openMatchModal === "function") {
+                window.openModal = (matchId) => {
+                    document.getElementById("teamMatchCardEditor")?.replaceChildren();
+                    return openMatchModal(matchId);
+                };
+            }
+            if (typeof saveMatchModal !== "function") return;
+            window.saveModalData = function (...args) {
+                const matchId = document.getElementById("modalMatchId")?.value;
+                const match = window.appState?.schedule?.find((item) => item.id === matchId);
+                const cards = match?.matchCards ?? [];
+                const allResultsEntered = match?.format !== "exhibition" && cards.length > 0 && cards.every((card, index) => {
+                    if (card.exhibition) return true;
+                    const mode = document.querySelector(`[data-card-result-mode="${index}"]`)?.value
+                        ?? card.resultMode
+                        ?? window.getTeamCardDefaultMode(match.sport);
+                    if (mode === "points") {
+                        const scores = [...document.querySelectorAll(`[data-card-score="${index}"]`)];
+                        return scores.length > 0 && scores.every((input) => input.value !== "" && Number.isFinite(Number(input.value)));
+                    }
+                    if (mode === "time") {
+                        const times = [...document.querySelectorAll(`[data-card-race-time="${index}"]`)];
+                        return times.length > 0 && times.every((input) => input.value !== "");
+                    }
+                    return Boolean(document.querySelector(`[data-card-winner="${index}"]`)?.value);
+                });
+                if (allResultsEntered && window.appState?.selectedModalStatus === "BEFORE") {
+                    window.setModalStatus("FINISHED");
+                }
+                return saveMatchModal.apply(this, args);
+            };
+        });
     </script>
     <script src="./ballsports.js?v=20260930T3" defer></script>
 </body>
