@@ -785,7 +785,6 @@
             defaultCourt: "上グラ",
             courts: ["上グラ"],
             expectedSports: ["開会式", "大玉送り", "竹取物語", "台風の目", "しっぽとり", "借り人競争", "部対抗リレー", "昼休み", "綱引き", "二人三脚", "100人フットボール", "選抜リレー", "騎馬戦", "団長騎馬戦", "閉会式"],
-            requiredScheduleField: "matchCards",
             includeInitialInAdmin: true,
             splitTeamBlocks: true,
             documentCandidates: [{ collection: "app_data", doc: "team_sports_main" }],
@@ -911,7 +910,7 @@
                     if (card.exhibition) return true;
                     const mode = document.querySelector(`[data-card-result-mode="${index}"]`)?.value
                         ?? card.resultMode
-                        ?? window.getTeamCardDefaultMode(match.sport);
+                        ?? (typeof window.getTeamCardDefaultMode === "function" ? window.getTeamCardDefaultMode(match?.sport) : "points");
                     if (mode === "points") {
                         const scores = [...document.querySelectorAll(`[data-card-score="${index}"]`)];
                         return scores.length > 0 && scores.every((input) => input.value !== "" && Number.isFinite(Number(input.value)));
