@@ -10,6 +10,26 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script>
+        (() => {
+            if (!window.firebase?.firestore?.DocumentReference) return;
+            const originalSet = firebase.firestore.DocumentReference.prototype.set;
+            function sanitizeData(val) {
+                if (Array.isArray(val)) return val.map(sanitizeData);
+                if (val !== null && typeof val === "object" && !(val instanceof Date) && !(val instanceof firebase.firestore.FieldValue)) {
+                    const clean = {};
+                    for (const [k, v] of Object.entries(val)) {
+                        if (v !== undefined) clean[k] = sanitizeData(v);
+                    }
+                    return clean;
+                }
+                return val;
+            }
+            firebase.firestore.DocumentReference.prototype.set = function (data, options) {
+                return originalSet.call(this, sanitizeData(data), options);
+            };
+        })();
+    </script>
+    <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -863,6 +883,13 @@
             { label: "応援団長 同時", group: "応援団長", order: "A/B/C/D 同時", teams: ["A", "B", "C", "D"], resultMode: "time" },
             { label: "順位決定", group: "応援団長", order: "A/B/C/D 順位決定", teams: ["A", "B", "C", "D"], resultMode: "time" }
         ] });
+
+        teamSchedule.forEach((item) => {
+            if (item.tournamentType === undefined) item.tournamentType = "";
+            if (item.matchCards === undefined) item.matchCards = [];
+            if (item.matchOrder === undefined) item.matchOrder = [];
+            if (item.inputMode === undefined) item.inputMode = "";
+        });
     </script>
     <script>
         (() => {
