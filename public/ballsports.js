@@ -687,7 +687,6 @@ async function initFirebaseSync() {
         if (!loaded) {
             updateSyncStatus("ローカルモード", "warning");
             console.log("[Firebase] リモートデータなし、ローカルデータを使用");
-            await syncStateToFirebase();
         }
         else {
             const primarySnapshot = await firebaseSync.db.collection("app_data").doc(MAIN_DATA_DOC).get();
