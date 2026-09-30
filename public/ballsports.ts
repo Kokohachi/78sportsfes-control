@@ -395,6 +395,32 @@ function applyRemoteDocumentData(data: any): boolean {
   return true;
 }
 
+function isUnmodifiedInitialSchedule(schedule: Match[]): boolean {
+  if (!Array.isArray(schedule) || schedule.length !== INITIAL_SCHEDULE.length) return false;
+  const initialById = new Map(INITIAL_SCHEDULE.map((match) => [match.id, match]));
+  return schedule.every((match) => {
+    const initial = initialById.get(match.id);
+    return !!initial && match.status === "BEFORE" && match.scoreA === null && match.scoreB === null
+      && match.start === initial.start && match.end === initial.end
+      && match.teamA === initial.teamA && match.teamB === initial.teamB;
+  });
+}
+
+async function restoreLatestBackupIfMoreComplete(): Promise<boolean> {
+  const backups = getBackupCollection();
+  if (!backups || !isUnmodifiedInitialSchedule(appState.schedule)) return false;
+  try {
+    const snapshot = await backups.orderBy("createdAt", "desc").limit(1).get();
+    const latest = snapshot.docs[0]?.data();
+    if (!Array.isArray(latest?.schedule) || !latest.schedule.every(isMatch) || latest.schedule.length <= appState.schedule.length) return false;
+    console.warn("[Firebase] 初期日程をより多い試合数のバックアップから復旧します", latest.schedule.length);
+    return applyRemoteDocumentData(latest);
+  } catch (error) {
+    console.warn("[Firebase] バックアップからの自動復旧をスキップしました", error);
+    return false;
+  }
+}
+
 function subscribeToRemoteData(): void {
   if (!firebaseSync.db || !firebaseSync.initialized) return;
 
@@ -437,6 +463,7 @@ async function initFirebaseSync(): Promise<void> {
     ];
 
     let loaded = false;
+    let recoveredFromBackup = false;
     for (const { collection, doc } of documentCandidates) {
       try {
         const docSnap = await firebaseSync.db.collection(collection).doc(doc).get();
@@ -451,13 +478,17 @@ async function initFirebaseSync(): Promise<void> {
       }
     }
 
+    if (!loaded || isUnmodifiedInitialSchedule(appState.schedule)) {
+      recoveredFromBackup = await restoreLatestBackupIfMoreComplete();
+      loaded = loaded || recoveredFromBackup;
+    }
     if (!loaded) {
       updateSyncStatus("ローカルモード", "warning");
       console.log("[Firebase] リモートデータなし、ローカルデータを使用");
       await syncStateToFirebase();
     } else {
       const primarySnapshot = await firebaseSync.db.collection("app_data").doc(MAIN_DATA_DOC).get();
-      if (!primarySnapshot.exists) await syncStateToFirebase();
+      if (!primarySnapshot.exists || recoveredFromBackup) await syncStateToFirebase();
     }
 
     subscribeToRemoteData();
@@ -1702,7 +1733,7 @@ async function loadBackupList(): Promise<void> {
   const backups = getBackupCollection();
   if (!container || !backups) return;
   try {
-    const snapshot = await backups.orderBy("createdAt", "desc").limit(10).get();
+    const snapshot = await backups.orderBy("createdAt", "desc").get();
     if (snapshot.empty) {
       const status = document.getElementById("dataBackupStatus");
       if (status) status.textContent = "バックアップ履歴はありません。";
