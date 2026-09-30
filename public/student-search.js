@@ -285,10 +285,23 @@
       }
       input.dataset.field = field;
       input.value = state.filters[field] ?? "";
-      input.addEventListener("input", () => { state.filters[field] = input.value; renderResults(); resetLockTimer(); });
+      input.addEventListener("input", () => { state.filters[field] = input.value; renderResults(); renderExportGroupValues(); resetLockTimer(); });
       label.append(input);
       container.append(label);
     });
+    const groupField = $("exportGroupField"), previousGroupField = groupField.value;
+    groupField.replaceChildren(new Option("現在の絞り込みを1シートで出力", ""), ...state.fields.map((field) => new Option(field, field)));
+    if (state.fields.includes(previousGroupField)) groupField.value = previousGroupField;
+    renderExportGroupValues();
+  }
+
+  function renderExportGroupValues() {
+    const field = $("exportGroupField").value, select = $("exportGroupValues");
+    const previous = new Set([...select.selectedOptions].map((option) => option.value));
+    const values = field ? [...new Set(filteredRows().map((row) => String(row[field] ?? "")).filter((value) => value.trim()))].sort((a, b) => a.localeCompare(b, "ja")) : [];
+    select.replaceChildren(...values.map((value) => new Option(value, value)));
+    [...select.options].forEach((option) => { option.selected = previous.has(option.value); });
+    select.disabled = !field;
   }
 
   function renderExportFields() {
@@ -378,16 +391,27 @@
     if (!records.length) return alert("出力する生徒がいません。");
     if (!fields.length && !attendanceFields.length) return alert("出力する項目を選択してください。");
     const headers = [...fields, ...attendanceFields];
-    const borderStyle = "border:1px solid #475569;padding:5px 8px;vertical-align:middle;";
-    const headerCells = headers.map((field) => `<th style="${borderStyle}background:#e8edf5;font-weight:bold">${excelText(field)}</th>`).join("");
-    const rowsHtml = records.map((record) => `<tr>${fields.map((field) => `<td style="${borderStyle}mso-number-format:'\\@'">${excelText(record[field])}</td>`).join("")}${attendanceFields.map(() => `<td style="${borderStyle}mso-number-format:'\\@'"></td>`).join("")}</tr>`).join("");
-    const documentHtml = `<!doctype html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>出欠名簿</x:Name><x:WorksheetOptions><x:DisplayGridlines>1</x:DisplayGridlines></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table style="border-collapse:collapse;border:1px solid #475569"><thead><tr>${headerCells}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`;
-    const blob = new Blob(["\uFEFF", documentHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `出欠名簿_${new Date().toISOString().slice(0, 10)}.xls`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    if (!window.XLSX) return alert("Excel出力ライブラリを読み込めませんでした。ページを再読み込みしてください。");
+    const groupField = $("exportGroupField").value;
+    const selectedValues = [...$("exportGroupValues").selectedOptions].map((option) => option.value);
+    if (groupField && !selectedValues.length) return alert("シートに分ける値を1つ以上選択してください。");
+    const groups = groupField && selectedValues.length
+      ? selectedValues.map((value) => ({ name: `${value}名簿`, rows: records.filter((record) => String(record[groupField] ?? "") === value) }))
+      : [{ name: "名簿", rows: records }];
+    const workbook = XLSX.utils.book_new();
+    const usedNames = new Set();
+    groups.forEach(({ name, rows }) => {
+      if (!rows.length) return;
+      const safeName = (base, index = 1) => {
+        const candidate = `${base.slice(0, 31 - (index > 1 ? String(index).length + 1 : 0))}${index > 1 ? `_${index}` : ""}`;
+        if (!usedNames.has(candidate)) { usedNames.add(candidate); return candidate; }
+        return safeName(base, index + 1);
+      };
+      const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows.map((record) => [...fields.map((field) => String(record[field] ?? "")), ...attendanceFields.map(() => "")])], { cellDates: false });
+      sheet["!cols"] = headers.map(() => ({ wch: 16 }));
+      XLSX.utils.book_append_sheet(workbook, sheet, safeName(name));
+    });
+    XLSX.writeFile(workbook, "第78回体育祭名簿.xlsx");
     resetLockTimer();
   }
 
@@ -466,7 +490,8 @@
   $("importMode").addEventListener("change", () => $("keyField").closest("label").classList.toggle("hidden", $("importMode").value !== "merge"));
   $("confirmImport").addEventListener("click", () => commitImport().catch((error) => setMessage("importStatus", error.message || "Firebaseへの保存に失敗しました。アクセスルールと接続を確認してください。", true)));
   $("cancelImport").addEventListener("click", () => { state.staged = null; $("importOptions").classList.add("hidden"); $("importFile").value = ""; });
-  $("query").addEventListener("input", () => { renderResults(); resetLockTimer(); });
+  $("query").addEventListener("input", () => { renderResults(); renderExportGroupValues(); resetLockTimer(); });
+  $("exportGroupField").addEventListener("change", renderExportGroupValues);
   $("exportButton").addEventListener("click", exportAttendanceWorkbook);
   $("viewMode").addEventListener("change", renderResults);
   $("viewMode").addEventListener("change", () => document.body.classList.toggle("wide-table-view", $("viewMode").value === "table"));
