@@ -1968,20 +1968,38 @@ function saveTimeConfig() {
             return;
         const startInput = row.querySelector('[data-field="start"]');
         const endInput = row.querySelector('[data-field="end"]');
-        if (startInput && typeof startInput.value === "string" && startInput.value)
-            match.start = startInput.value;
-        if (endInput && typeof endInput.value === "string" && endInput.value)
-            match.end = endInput.value;
-        const cardTimes = {};
+        const previousStart = match.start;
+        const previousEnd = match.end;
+        const previousCardTimes = match.cardTimes;
+        const nextStart = startInput?.value || previousStart;
+        const nextEnd = endInput?.value || previousEnd;
+        match.start = nextStart;
+        match.end = nextEnd;
+        const cardTimes = [];
         row.querySelectorAll("[data-card-time]").forEach((input) => {
-            const index = input.getAttribute("data-card-time");
+            const index = Number(input.getAttribute("data-card-time"));
             const field = input.getAttribute("data-card-field");
+            if (!Number.isInteger(index) || !["start", "end"].includes(field))
+                return;
             if (!cardTimes[index])
-                cardTimes[index] = {};
-            cardTimes[index][field] = input.value;
+                cardTimes[index] = { ...(Array.isArray(previousCardTimes) ? previousCardTimes[index] : previousCardTimes?.[index]) };
+            if (input.value)
+                cardTimes[index][field] = input.value;
         });
-        if (Object.keys(cardTimes).length > 0)
+        if (cardTimes.length > 0) {
             match.cardTimes = cardTimes;
+            if (cardTimes.length === 1) {
+                const oldCardTime = Array.isArray(previousCardTimes) ? previousCardTimes[0] : previousCardTimes?.[0];
+                const cardStartChanged = cardTimes[0]?.start && cardTimes[0].start !== (oldCardTime?.start ?? previousStart);
+                const cardEndChanged = cardTimes[0]?.end && cardTimes[0].end !== (oldCardTime?.end ?? previousEnd);
+                match.start = cardStartChanged || nextStart === previousStart ? (cardTimes[0]?.start ?? nextStart) : nextStart;
+                match.end = cardEndChanged || nextEnd === previousEnd ? (cardTimes[0]?.end ?? nextEnd) : nextEnd;
+                match.cardTimes[0] = { ...match.cardTimes[0], start: match.start, end: match.end };
+            }
+        } else {
+            match.start = nextStart;
+            match.end = nextEnd;
+        }
         updated += 1;
     });
     saveState();
@@ -2016,6 +2034,9 @@ function applyTimeConfig() {
         const matchStart = addMinutesToTime(start, slotIndex * (duration + interval));
         match.start = matchStart;
         match.end = addMinutesToTime(matchStart, duration);
+        if (Array.isArray(match.matchCards) && match.matchCards.length === 1) {
+            match.cardTimes = [{ ...(match.cardTimes?.[0] ?? {}), start: match.start, end: match.end }];
+        }
     });
     saveState();
     renderTimeConfigEditor();
