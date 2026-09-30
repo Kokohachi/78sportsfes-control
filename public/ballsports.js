@@ -225,7 +225,8 @@ function normalizeScheduleEntry(source) {
         end: endValue,
         status: normalizeLegacyStatus(source.status),
         offsetMins: Number.isFinite(Number(source.offsetMins)) ? Number(source.offsetMins) : Number.isFinite(Number(source.delay)) ? Number(source.delay) : 0,
-        pointRule: Array.isArray(source.pointRule) ? source.pointRule : [150, 100, 50, 0]
+        pointRule: source.baseballCombined ? [150, 150, 100, 100] : Array.isArray(source.pointRule) ? source.pointRule : [150, 100, 50, 0],
+        ...(source.baseballCombined ? { tournamentType: "bracket" } : {})
     };
 }
 function normalizeCompetitionSchedule(sourceSchedule) {
@@ -905,7 +906,7 @@ function renderTimeConfigEditor() {
     const blocks = [...blockMap.values()];
     if (summaryContainer)
         summaryContainer.innerHTML = '<div class="text-[10px] font-black text-slate-500">競技を開くと、学年別・カード別の時刻を編集できます。</div>';
-    listContainer.innerHTML = blocks.map((block, blockIndex) => `<details class="mb-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" ${blockIndex === 0 ? "open" : ""}><summary class="cursor-pointer p-3 flex justify-between"><strong class="text-xs">${block.sport} <span class="text-[10px] text-slate-400">${block.grade}</span></strong><span class="text-[10px]">${block.matches.length}ブロック</span></summary><div class="border-t p-2 space-y-2">${block.matches.map((match) => { const timeStep = match.sport === "卓球" ? "1" : "60"; return `<div class="time-setting-row" data-match-row="${match.id}"><div class="text-[11px] font-black">${match.title}<div class="text-[10px] text-slate-500">${match.grade} / ${match.court}</div></div><label class="text-[10px]">全体開始<input type="time" step="${timeStep}" value="${match.start ?? "08:00"}" data-field="start" class="w-full rounded-lg border px-2 py-1"></label><label class="text-[10px]">全体終了<input type="time" step="${timeStep}" value="${match.end ?? "08:30"}" data-field="end" class="w-full rounded-lg border px-2 py-1"></label>${(match.matchCards ?? []).map((card, index) => `<div class="col-span-full rounded-lg bg-slate-50 dark:bg-slate-950 p-2"><div class="text-[10px] font-black">${card.label ?? `カード${index + 1}`} / ${String(card.order ?? "").replace(/\//g, "対")}</div><div class="grid grid-cols-2 gap-2"><input type="time" step="${timeStep}" value="${match.cardTimes?.[index]?.start ?? match.start ?? "08:00"}" data-card-time="${index}" data-card-field="start" class="rounded-lg border px-2 py-1"><input type="time" step="${timeStep}" value="${match.cardTimes?.[index]?.end ?? match.end ?? "08:30"}" data-card-time="${index}" data-card-field="end" class="rounded-lg border px-2 py-1"></div></div>`).join("")}</div>`; }).join("")}</div></details>`).join("");
+    listContainer.innerHTML = blocks.map((block, blockIndex) => `<details class="mb-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" ${blockIndex === 0 ? "open" : ""}><summary class="cursor-pointer p-3 flex justify-between"><strong class="text-xs">${block.sport} <span class="text-[10px] text-slate-400">${block.grade}</span></strong><span class="text-[10px]">${block.matches.length}ブロック</span></summary><div class="border-t p-2 space-y-2">${block.matches.map((match) => { const timeStep = match.sport === "卓球" ? "30" : "60"; return `<div class="time-setting-row" data-match-row="${match.id}"><div class="text-[11px] font-black">${match.title}<div class="text-[10px] text-slate-500">${match.grade} / ${match.court}</div></div><label class="text-[10px]">全体開始<input type="time" step="${timeStep}" value="${match.start ?? "08:00"}" data-field="start" class="w-full rounded-lg border px-2 py-1"></label><label class="text-[10px]">全体終了<input type="time" step="${timeStep}" value="${match.end ?? "08:30"}" data-field="end" class="w-full rounded-lg border px-2 py-1"></label>${(match.matchCards ?? []).map((card, index) => `<div class="col-span-full rounded-lg bg-slate-50 dark:bg-slate-950 p-2"><div class="text-[10px] font-black">${card.label ?? `カード${index + 1}`} / ${String(card.order ?? "").replace(/\//g, "対")}</div><div class="grid grid-cols-2 gap-2"><input type="time" step="${timeStep}" value="${match.cardTimes?.[index]?.start ?? match.start ?? "08:00"}" data-card-time="${index}" data-card-field="start" class="rounded-lg border px-2 py-1"><input type="time" step="${timeStep}" value="${match.cardTimes?.[index]?.end ?? match.end ?? "08:30"}" data-card-time="${index}" data-card-field="end" class="rounded-lg border px-2 py-1"></div></div>`).join("")}</div>`; }).join("")}</div></details>`).join("");
 }
 function setTimelineViewMode(mode) {
     appState.timelineViewMode = mode;
@@ -1349,7 +1350,7 @@ function isCompetitionComplete(matches, format) {
     if (format === "tournament") {
         const baseball = matches.find((match) => match.baseballCombined);
         if (baseball)
-            return hasResult(baseball) && baseball.scoreA !== baseball.scoreB;
+            return hasResult(baseball) && baseball.scoreA !== baseball.scoreB && Object.keys(baseball.rankPointsByTeam ?? {}).length === 4;
         const race = matches.find((match) => match.tournamentType === "race");
         if (race)
             return Array.isArray(race.rankOrder) && race.rankOrder.length === 4;
@@ -1902,7 +1903,7 @@ function updateTimeIntervalInput() {
         intervalInput.value = String(Math.round(Number(intervalInput.value)));
     hint?.classList.toggle("hidden", !isTableTennis);
     if (startInput)
-        startInput.step = isTableTennis ? "1" : "60";
+        startInput.step = isTableTennis ? "30" : "60";
 }
 function renderTimeConfigEditorLegacy() {
     const blockSelect = document.getElementById("timeConfigBlockSelect");
@@ -2009,8 +2010,10 @@ function applyTimeConfig() {
         return;
     }
     const matches = [...block.matches].sort((a, b) => (a.start || "00:00").localeCompare(b.start || "00:00"));
+    const isTableTennis = block.sport === "卓球" && matches.length >= 6;
     matches.forEach((match, index) => {
-        const matchStart = addMinutesToTime(start, index * (duration + interval));
+        const slotIndex = isTableTennis ? Math.floor(index / 6) : index;
+        const matchStart = addMinutesToTime(start, slotIndex * (duration + interval));
         match.start = matchStart;
         match.end = addMinutesToTime(matchStart, duration);
     });
@@ -2111,12 +2114,14 @@ function createNewMatch() {
     const sport = document.getElementById("addSport")?.value.trim() ?? "";
     const format = document.getElementById("addFormat")?.value ?? "tournament";
     const court = document.getElementById("addCourt")?.value ?? DEFAULT_COURT;
-    const title = document.getElementById("addTitle")?.value.trim() ?? "";
-    const teamA = document.getElementById("addTeamA")?.value.trim() || "A組";
-    const teamB = document.getElementById("addTeamB")?.value.trim() || "B組";
+    const titleInputValue = document.getElementById("addTitle")?.value.trim() ?? "";
+    const title = titleInputValue || (sport === "野球" && format === "tournament" ? "野球試合" : "");
+    const isBaseballTournament = sport === "野球" && format === "tournament";
+    const teamA = document.getElementById("addTeamA")?.value.trim() || (isBaseballTournament ? "A+B組" : "A組");
+    const teamB = document.getElementById("addTeamB")?.value.trim() || (isBaseballTournament ? "C+D組" : "B組");
     const start = document.getElementById("addStartTime")?.value ?? "09:00";
     const end = document.getElementById("addEndTime")?.value ?? "09:30";
-    const pointRule = getAddPointRule();
+    const pointRule = isBaseballTournament ? [150, 150, 100, 100] : getAddPointRule();
     if (!sport || !title) {
         alert("競技名と試合タイトルを入力してください。");
         return;
@@ -2138,7 +2143,8 @@ function createNewMatch() {
         staff: "",
         status: "BEFORE",
         offsetMins: 0,
-        pointRule
+        pointRule,
+        ...(isBaseballTournament ? { blockId: `baseball_${Date.now()}`, tournamentType: "bracket", baseballCombined: true, matchCards: [] } : {})
     };
     appState.schedule.push(newMatch);
     saveState();
@@ -2176,12 +2182,17 @@ function createCompetitionBlock() {
         alert("競技名を入力してください。");
         return;
     }
-    const [startHour, startMinute] = start.split(":").map(Number);
-    const duration = Math.max(15, (Number(end.split(":")[0]) * 60 + Number(end.split(":")[1])) - (startHour * 60 + startMinute));
+    const duration = Math.max(0.5, parseTimeMinutes(end) - parseTimeMinutes(start));
     const blockId = `block_${Date.now()}`;
     const blockTitle = document.getElementById("addTitle")?.value.trim() || "第1試合";
     const pointRule = getAddPointRule();
     const scheduleFormat = sport === "卓球" && format === "tournament" ? "table_tennis_round_robin" : format;
+    if (sport === "野球" && scheduleFormat === "tournament") {
+        const titleInput = document.getElementById("addTitle");
+        if (titleInput && !titleInput.value.trim()) titleInput.value = "野球試合";
+        createNewMatch();
+        return;
+    }
     const definitions = getFormatMatchDefinitions(scheduleFormat);
     definitions.forEach((definition, index) => {
         appState.schedule.push({
@@ -2197,8 +2208,8 @@ function createCompetitionBlock() {
             teamB: definition[2],
             scoreA: null,
             scoreB: null,
-            start: addMinutesToTime(start, index * (duration + 5)),
-            end: addMinutesToTime(start, index * (duration + 5) + duration),
+            start: addMinutesToTime(start, (scheduleFormat === "table_tennis_round_robin" ? Math.floor(index / 6) : index) * (duration + 5)),
+            end: addMinutesToTime(start, (scheduleFormat === "table_tennis_round_robin" ? Math.floor(index / 6) : index) * (duration + 5) + duration),
             referee: "",
             staff: "",
             status: "BEFORE",
@@ -2409,6 +2420,24 @@ function saveModalData() {
     const oldOffset = isInProgress ? (m.endOffsetMins ?? 0) : m.offsetMins;
     const diff = newOffset - oldOffset;
     const teamDay = Boolean(SPORTS_PAGE_CONFIG.splitTeamBlocks);
+    if (teamDay) {
+        for (const [index, card] of (m.matchCards ?? []).entries()) {
+            const mode = document.querySelector(`[data-card-result-mode="${index}"]`)?.value ?? card.resultMode ?? getTeamCardDefaultMode(m.sport);
+            if (mode !== "points") continue;
+            const teams = (card.teams?.length ? card.teams : String(card.order ?? "A/B").split(/[\/繝ｻ,縲‐/).filter((team) => /^[A-D]$/.test(team.trim())).map((team) => team.trim())).map((team) => resolveTeamParticipant(m, team));
+            const range = getTeamPointRange(m.sport);
+            const invalid = teams.some((team) => {
+                const value = document.querySelector(`[data-card-score="${index}"][data-team="${team}"]`)?.value ?? "";
+                if (value === "") return false;
+                const score = Number(value);
+                return !Number.isFinite(score) || score < range.min || (range.max !== "" && score > range.max) || (score - range.min) % range.step !== 0;
+            });
+            if (invalid) {
+                alert(`${m.sport}の得点を${range.min}〜${range.max || "上限なし"}点、${range.step}点刻みで入力してください。`);
+                return;
+            }
+        }
+    }
     m.status = appState.selectedModalStatus;
     if (teamDay) {
         m.cardResults = [];
@@ -2492,19 +2521,21 @@ function saveModalData() {
     if (diff !== 0 && isInProgress) {
         m.endOffsetMins = newOffset;
         saveState();
+        closeModal();
         renderTimeline();
         renderCourtDelaySummary();
     }
     else if (diff !== 0) {
+        closeModal();
         applyCascadeOffset(m.id, diff);
     }
     else {
         saveState();
+        closeModal();
         renderTimeline();
         renderCourtDelaySummary();
     }
     calculateScoresAndRanks();
-    closeModal();
 }
 function authenticateAdmin() {
     const pass = document.getElementById("adminPasswordInput")?.value ?? "";

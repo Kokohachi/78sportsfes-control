@@ -457,8 +457,8 @@
                         <div>
                             <label class="font-bold text-slate-500 dark:text-slate-400 block mb-1">予定時刻 (開始 - 終了):</label>
                             <div class="flex items-center gap-1">
-                                <input type="time" id="addStartTime" value="09:00" class="w-1/2 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-bold">
-                                <input type="time" id="addEndTime" value="09:30" class="w-1/2 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-bold">
+                                <input type="time" id="addStartTime" step="30" value="09:00" class="w-1/2 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-bold">
+                                <input type="time" id="addEndTime" step="30" value="09:30" class="w-1/2 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-bold">
                             </div>
                         </div>
                     </div>
@@ -481,7 +481,7 @@
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/70 dark:bg-sky-950/20 p-3">
                         <label class="text-[10px] font-black text-slate-500 dark:text-slate-400">競技開始時刻
-                            <input id="timeConfigStart" type="time" value="08:20" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
+                            <input id="timeConfigStart" type="time" step="30" value="08:20" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
                         </label>
                         <label class="text-[10px] font-black text-slate-500 dark:text-slate-400">試合時間（分）
                             <input id="timeConfigDuration" type="number" min="1" value="30" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
@@ -818,6 +818,6 @@
             });
         })();
     </script>
-    <script src="./ballsports.js?v=20260930T1" defer></script>
+    <script src="./ballsports.js?v=20260930T2" defer></script>
 </body>
 </html>
