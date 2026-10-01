@@ -41,9 +41,9 @@ input:focus, select:focus { outline: 3px solid rgb(124 88 219 / 18%); border-col
 .search-label input { width: 100%; min-height: 3rem; font-size: 1rem; }
 .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 0.65rem; }
 .export-group-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.65rem; margin: 1rem 0; }
-.export-group-controls select { display: block; width: 100%; margin-top: 0.35rem; }
-.export-group-controls label { min-width: 0; color: #475569; font-size: 0.78rem; font-weight: 750; }
-.export-group-controls select[multiple] { min-height: 7rem; }
+.export-group-label { margin: 0 0 0.35rem; color: #475569; font-size: 0.78rem; font-weight: 750; }
+.export-group-options { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; min-height: 2rem; }
+.export-group-options .check-label { min-width: 0; }
 .filter-control { display: grid; gap: 0.3rem; min-width: 0; color: #64748b; font-size: 0.72rem; font-weight: 800; }
 .filter-control select, .filter-control input { width: 100%; }
 .view-mode-label { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 1rem; color: #475569; font-size: 0.8rem; font-weight: 800; }

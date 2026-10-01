@@ -291,40 +291,55 @@
       container.append(label);
     });
     const groupFields = $("exportGroupFields");
-    const previousGroupFields = new Set([...groupFields.selectedOptions].map((option) => option.value));
-    const attendanceField = state.fields.find((field) => /出席番号|出席no|attendance.?number/i.test(field));
-    const attendanceOption = new Option("出席番号（1〜22 / 23以降）", ATTENDANCE_HALVES);
-    attendanceOption.disabled = !attendanceField;
-    const options = [
-      attendanceOption,
-      ...state.fields.map((field) => new Option(field, field))
-    ];
-    groupFields.replaceChildren(...options);
-    [...groupFields.options].forEach((option) => { option.selected = !option.disabled && previousGroupFields.has(option.value); });
-    $("exportGroupHint").textContent = attendanceField
+    const previousGroupFields = new Set([...groupFields.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value));
+    const hasAttendanceNumber = Boolean(attendanceNumberField());
+    const groupFieldOptions = [{ label: "番号（1〜22→前半、23以降→後半）", value: ATTENDANCE_HALVES, disabled: !hasAttendanceNumber }, ...state.fields.map((field) => ({ label: field, value: field }))];
+    groupFields.replaceChildren(...groupFieldOptions.map(({ label, value, disabled = false }) => {
+      const wrapper = document.createElement("label");
+      wrapper.className = "check-label";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = value;
+      input.checked = !disabled && previousGroupFields.has(value);
+      input.disabled = disabled;
+      wrapper.append(input, document.createTextNode(label));
+      return wrapper;
+    }));
+    $("exportGroupHint").textContent = hasAttendanceNumber
       ? "条件を選ばない場合は1シート、複数条件を選ぶと値の組み合わせごとにシートを作成します。"
-      : "条件を選ばない場合は1シート、複数条件を選ぶと値の組み合わせごとにシートを作成します。出席番号の前半・後半分けには「出席番号」列が必要です。";
+      : "条件を選ばない場合は1シート、複数条件を選ぶと値の組み合わせごとにシートを作成します。「番号（前半・後半）」分けには「番号」列が必要です。";
     renderExportGroupValues();
   }
 
   function renderExportGroupValues() {
-    const selectedFields = [...$("exportGroupFields").selectedOptions].map((option) => option.value);
-    const field = selectedFields[0], select = $("exportGroupValues");
-    const previous = new Set([...select.selectedOptions].map((option) => option.value));
-    const attendanceField = state.fields.find((name) => /出席番号|出席no|attendance.?number/i.test(name));
+    const selectedFields = [...$("exportGroupFields").querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+    const field = selectedFields[0], container = $("exportGroupValues");
+    const previous = new Set([...container.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value));
+    const attendanceField = attendanceNumberField();
     const values = selectedFields.length === 1 && field === ATTENDANCE_HALVES
       ? ["前半（1〜22）", "後半（23以降）"].filter((half) => filteredRows().some((row) => attendanceHalf(row[attendanceField]) === half))
       : selectedFields.length === 1
         ? [...new Set(filteredRows().map((row) => String(row[field] ?? "")).filter((value) => value.trim()))].sort((a, b) => a.localeCompare(b, "ja"))
         : [];
-    select.replaceChildren(...values.map((value) => new Option(value, value)));
-    [...select.options].forEach((option) => { option.selected = previous.has(option.value); });
+    container.replaceChildren(...values.map((value) => {
+      const wrapper = document.createElement("label");
+      wrapper.className = "check-label";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = value;
+      input.checked = previous.has(value);
+      wrapper.append(input, document.createTextNode(value));
+      return wrapper;
+    }));
     const singleCondition = selectedFields.length === 1;
     $("exportGroupValuesLabel").classList.toggle("hidden", !singleCondition);
-    select.disabled = !singleCondition;
     if (selectedFields.length > 1) $("exportGroupHint").textContent = "選択した条件の値の組み合わせごとにシートを作成します。";
     else if (selectedFields.length === 1) $("exportGroupHint").textContent = "出力する値を選択してください。";
     else $("exportGroupHint").textContent = "条件を選ばない場合は1シートで出力します。";
+  }
+
+  function attendanceNumberField() {
+    return state.fields.find((field) => /^(出席番号|番号|出席no|attendance.?number)$/i.test(field.trim()));
   }
 
   function attendanceHalf(value) {
@@ -422,20 +437,20 @@
     if (!fields.length && !attendanceFields.length) return alert("出力する項目を選択してください。");
     const headers = [...fields, ...attendanceFields];
     if (!window.XLSX) return alert("Excel出力ライブラリを読み込めませんでした。ページを再読み込みしてください。");
-    const groupFields = [...$("exportGroupFields").selectedOptions].map((option) => option.value);
-    const selectedValues = [...$("exportGroupValues").selectedOptions].map((option) => option.value);
-    if (groupFields.includes(ATTENDANCE_HALVES) && !state.fields.some((field) => /出席番号|出席no|attendance.?number/i.test(field))) return alert("出席番号列が見つかりません。");
+    const groupFields = [...$("exportGroupFields").querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+    const selectedValues = [...$("exportGroupValues").querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+    if (groupFields.includes(ATTENDANCE_HALVES) && !attendanceNumberField()) return alert("「番号」列が見つかりません。");
     if (groupFields.length === 1 && !selectedValues.length) return alert("シートに分ける値を1つ以上選択してください。");
     const groups = [];
     if (groupFields.length === 1) {
       const field = groupFields[0];
-      const attendanceField = state.fields.find((name) => /出席番号|出席no|attendance.?number/i.test(name));
+      const attendanceField = attendanceNumberField();
       groups.push(...selectedValues.map((value) => ({
         name: `${value}名簿`,
         rows: records.filter((record) => (field === ATTENDANCE_HALVES ? attendanceHalf(record[attendanceField]) : String(record[field] ?? "")) === value)
       })));
     } else if (groupFields.length > 1) {
-      const attendanceField = state.fields.find((name) => /出席番号|出席no|attendance.?number/i.test(name));
+      const attendanceField = attendanceNumberField();
       const groupedRows = new Map();
       records.forEach((record) => {
         const values = groupFields.map((field) => field === ATTENDANCE_HALVES
