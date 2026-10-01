@@ -695,7 +695,7 @@ async function initFirebaseSync() {
         }
         subscribeToRemoteData();
         scheduleAutomaticBackup(5000);
-        window.setInterval(() => createAutomaticBackup(), 15 * 60 * 1000);
+        window.setInterval(() => createAutomaticBackup(), 60 * 60 * 1000);
     }
     catch (err) {
         console.error("[Firebase 初期化失敗]", err);
@@ -2691,7 +2691,7 @@ async function createBackup() {
             status.textContent = "バックアップを作成できませんでした。JSON出力を利用してください。";
     }
 }
-function scheduleAutomaticBackup(delay = 60_000) {
+function scheduleAutomaticBackup(delay = 60 * 60 * 1000) {
     if (!firebaseSync.db || !firebaseSync.initialized)
         return;
     clearTimeout(automaticBackupTimer);
