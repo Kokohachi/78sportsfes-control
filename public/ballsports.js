@@ -792,7 +792,6 @@ function startClock() {
         return;
     let lastGanttTick = "";
     let lastAdminTick = "";
-    let lastDelayTick = "";
     const update = () => {
         const now = new Date();
         const hrs = String(now.getHours()).padStart(2, "0");
@@ -809,11 +808,6 @@ function startClock() {
         if (adminClockEl && tick !== lastAdminTick) {
             adminClockEl.textContent = tick;
             lastAdminTick = tick;
-        }
-        const delayTick = `${hrs}:${mins}`;
-        if (delayTick !== lastDelayTick) {
-            renderCourtDelaySummary();
-            lastDelayTick = delayTick;
         }
         requestAnimationFrame(update);
     };
@@ -916,9 +910,7 @@ function renderCourtDelaySummary() {
         const matches = appState.schedule.filter((match) => match.court === court);
         const running = matches.find((match) => match.status === "IN_PROGRESS");
         const next = matches.filter((match) => match.status === "BEFORE").sort((a, b) => a.start.localeCompare(b.start))[0];
-        const now = new Date();
-        const actualMinutes = now.getHours() * 60 + now.getMinutes();
-        const delayMinutes = running ? Math.round(actualMinutes - parseTimeMinutes(running.start)) : null;
+        const delayMinutes = running ? Math.round(running.offsetMins ?? 0) : null;
         const delayed = delayMinutes !== null && delayMinutes > 0;
         const ahead = delayMinutes !== null && delayMinutes < 0;
         const delayLabel = delayMinutes === null ? "進行中なし" : delayed ? `+${delayMinutes}分 遅延中` : ahead ? `${delayMinutes}分 予定より早い` : "予定どおり (±0分)";
@@ -2599,6 +2591,7 @@ function saveModalData() {
         renderTimeline();
         renderCourtDelaySummary();
     }
+    if (!document.getElementById("sec-gantt")?.classList.contains("hidden")) renderGantt();
     calculateScoresAndRanks();
 }
 function authenticateAdmin() {
