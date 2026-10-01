@@ -918,7 +918,7 @@ function renderCourtDelaySummary() {
         const next = matches.filter((match) => match.status === "BEFORE").sort((a, b) => a.start.localeCompare(b.start))[0];
         const now = new Date();
         const actualMinutes = now.getHours() * 60 + now.getMinutes();
-        const delayMinutes = running ? Math.round(actualMinutes - (parseTimeMinutes(running.start) + (running.offsetMins ?? 0))) : null;
+        const delayMinutes = running ? Math.round(actualMinutes - parseTimeMinutes(running.start)) : null;
         const delayed = delayMinutes !== null && delayMinutes > 0;
         const ahead = delayMinutes !== null && delayMinutes < 0;
         const delayLabel = delayMinutes === null ? "進行中なし" : delayed ? `+${delayMinutes}分 遅延中` : ahead ? `${delayMinutes}分 予定より早い` : "予定どおり (±0分)";
