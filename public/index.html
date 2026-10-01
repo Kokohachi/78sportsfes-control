@@ -749,7 +749,7 @@
   <div class="countdown-card rounded-3xl p-8 md:p-12 lg:p-14 mb-16 text-center fade-in-up delay-1 relative z-10">
     <div class="flex items-center justify-center gap-2.5 mb-10">
       <div class="w-2 h-2 rounded-full bg-green-500 pulse-dot status-dot"></div>
-      <p class="text-gray-400 text-[10px] md:text-xs tracking-[0.3em] uppercase">Countdown to October 1st</p>
+      <p class="text-gray-400 text-[10px] md:text-xs tracking-[0.3em] uppercase">団体競技日まで</p>
     </div>
     
     <div id="countdown" class="flex justify-center gap-1.5 md:gap-3 lg:gap-5 flex-wrap items-end" role="timer" aria-live="off" aria-label="体育祭までのカウントダウン">
@@ -760,7 +760,7 @@
       <div class="divider-thin flex-1 max-w-[120px]"></div>
       <div class="flex items-center gap-2.5">
         <i data-lucide="calendar" class="w-3.5 h-3.5 text-gray-500"></i>
-        <p class="text-gray-500 text-[10px] md:text-xs tracking-[0.3em] uppercase">2026.10.01</p>
+        <p class="text-gray-500 text-[10px] md:text-xs tracking-[0.3em] uppercase">2026.10.02 07:00</p>
       </div>
       <div class="divider-thin flex-1 max-w-[120px]"></div>
     </div>
@@ -857,7 +857,7 @@
       mouseGlow.style.display = 'none';
     }
 
-    const TARGET = new Date('2026-10-01T07:00:00');
+    const TARGET = new Date('2026-10-02T07:00:00');
     
     function pad(n, d = 2) {
       return String(n).padStart(d, '0');
@@ -873,9 +873,9 @@
           container.parentElement.classList.add('event-complete');
           container.innerHTML = `
             <div class="event-title-panel w-full">
-              <p class="event-title-overline">Musashi · October 01, 2026</p>
-              <h2 class="event-title-jp">第78回体育祭</h2>
-              <p class="event-title-en">78th Musashi Sports Festival</p>
+              <p class="event-title-overline">Musashi · October 02, 2026</p>
+              <h2 class="event-title-jp">団体競技日</h2>
+              <p class="event-title-en">Team Sports Day</p>
               <div class="event-title-mark" aria-hidden="true"></div>
             </div>
           `;
