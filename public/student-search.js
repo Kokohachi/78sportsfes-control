@@ -25,6 +25,7 @@
   const SENSITIVE_HINT = /mail|メール|メアド|gmail|電話|phone|住所|address/i;
   const FREE_TEXT_FILTER_HINT = /4桁番号|四桁番号|学籍番号|生徒番号|個人番号|名字|姓|名前|氏名|メアド|メール|gmail|e-mail|^名$/i;
   const SPORT_HINT = /球技|競技|種目|sport/i;
+  const ATTENDANCE_HALVES = "__attendance_number_halves__";
   const state = { rows: [], fields: [], filters: {}, staged: null, selectedStudentIndices: new Set(), lockTimer: 0, db: null, auth: null, user: null, unsubscribe: null };
   const $ = (id) => document.getElementById(id);
 
@@ -289,19 +290,48 @@
       label.append(input);
       container.append(label);
     });
-    const groupField = $("exportGroupField"), previousGroupField = groupField.value;
-    groupField.replaceChildren(new Option("現在の絞り込みを1シートで出力", ""), ...state.fields.map((field) => new Option(field, field)));
-    if (state.fields.includes(previousGroupField)) groupField.value = previousGroupField;
+    const groupFields = $("exportGroupFields");
+    const previousGroupFields = new Set([...groupFields.selectedOptions].map((option) => option.value));
+    const attendanceField = state.fields.find((field) => /出席番号|出席no|attendance.?number/i.test(field));
+    const attendanceOption = new Option("出席番号（1〜22 / 23以降）", ATTENDANCE_HALVES);
+    attendanceOption.disabled = !attendanceField;
+    const options = [
+      attendanceOption,
+      ...state.fields.map((field) => new Option(field, field))
+    ];
+    groupFields.replaceChildren(...options);
+    [...groupFields.options].forEach((option) => { option.selected = !option.disabled && previousGroupFields.has(option.value); });
+    $("exportGroupHint").textContent = attendanceField
+      ? "条件を選ばない場合は1シート、複数条件を選ぶと値の組み合わせごとにシートを作成します。"
+      : "条件を選ばない場合は1シート、複数条件を選ぶと値の組み合わせごとにシートを作成します。出席番号の前半・後半分けには「出席番号」列が必要です。";
     renderExportGroupValues();
   }
 
   function renderExportGroupValues() {
-    const field = $("exportGroupField").value, select = $("exportGroupValues");
+    const selectedFields = [...$("exportGroupFields").selectedOptions].map((option) => option.value);
+    const field = selectedFields[0], select = $("exportGroupValues");
     const previous = new Set([...select.selectedOptions].map((option) => option.value));
-    const values = field ? [...new Set(filteredRows().map((row) => String(row[field] ?? "")).filter((value) => value.trim()))].sort((a, b) => a.localeCompare(b, "ja")) : [];
+    const attendanceField = state.fields.find((name) => /出席番号|出席no|attendance.?number/i.test(name));
+    const values = selectedFields.length === 1 && field === ATTENDANCE_HALVES
+      ? ["前半（1〜22）", "後半（23以降）"].filter((half) => filteredRows().some((row) => attendanceHalf(row[attendanceField]) === half))
+      : selectedFields.length === 1
+        ? [...new Set(filteredRows().map((row) => String(row[field] ?? "")).filter((value) => value.trim()))].sort((a, b) => a.localeCompare(b, "ja"))
+        : [];
     select.replaceChildren(...values.map((value) => new Option(value, value)));
     [...select.options].forEach((option) => { option.selected = previous.has(option.value); });
-    select.disabled = !field;
+    const singleCondition = selectedFields.length === 1;
+    $("exportGroupValuesLabel").classList.toggle("hidden", !singleCondition);
+    select.disabled = !singleCondition;
+    if (selectedFields.length > 1) $("exportGroupHint").textContent = "選択した条件の値の組み合わせごとにシートを作成します。";
+    else if (selectedFields.length === 1) $("exportGroupHint").textContent = "出力する値を選択してください。";
+    else $("exportGroupHint").textContent = "条件を選ばない場合は1シートで出力します。";
+  }
+
+  function attendanceHalf(value) {
+    const match = String(value ?? "").normalize("NFKC").match(/\d+/);
+    const number = match ? Number(match[0]) : NaN;
+    if (!Number.isInteger(number) || number < 1) return "";
+    return number <= 22 ? "前半（1〜22）" : "後半（23以降）";
   }
 
   function renderExportFields() {
@@ -392,20 +422,41 @@
     if (!fields.length && !attendanceFields.length) return alert("出力する項目を選択してください。");
     const headers = [...fields, ...attendanceFields];
     if (!window.XLSX) return alert("Excel出力ライブラリを読み込めませんでした。ページを再読み込みしてください。");
-    const groupField = $("exportGroupField").value;
+    const groupFields = [...$("exportGroupFields").selectedOptions].map((option) => option.value);
     const selectedValues = [...$("exportGroupValues").selectedOptions].map((option) => option.value);
-    if (groupField && !selectedValues.length) return alert("シートに分ける値を1つ以上選択してください。");
-    const groups = groupField && selectedValues.length
-      ? selectedValues.map((value) => ({ name: `${value}名簿`, rows: records.filter((record) => String(record[groupField] ?? "") === value) }))
-      : [{ name: "名簿", rows: records }];
+    if (groupFields.includes(ATTENDANCE_HALVES) && !state.fields.some((field) => /出席番号|出席no|attendance.?number/i.test(field))) return alert("出席番号列が見つかりません。");
+    if (groupFields.length === 1 && !selectedValues.length) return alert("シートに分ける値を1つ以上選択してください。");
+    const groups = [];
+    if (groupFields.length === 1) {
+      const field = groupFields[0];
+      const attendanceField = state.fields.find((name) => /出席番号|出席no|attendance.?number/i.test(name));
+      groups.push(...selectedValues.map((value) => ({
+        name: `${value}名簿`,
+        rows: records.filter((record) => (field === ATTENDANCE_HALVES ? attendanceHalf(record[attendanceField]) : String(record[field] ?? "")) === value)
+      })));
+    } else if (groupFields.length > 1) {
+      const attendanceField = state.fields.find((name) => /出席番号|出席no|attendance.?number/i.test(name));
+      const groupedRows = new Map();
+      records.forEach((record) => {
+        const values = groupFields.map((field) => field === ATTENDANCE_HALVES
+          ? attendanceHalf(record[attendanceField])
+          : String(record[field] ?? "").trim());
+        if (values.some((value) => !value)) return;
+        const key = JSON.stringify(values);
+        if (!groupedRows.has(key)) groupedRows.set(key, { name: `${values.join("_")}名簿`, rows: [] });
+        groupedRows.get(key).rows.push(record);
+      });
+      groups.push(...groupedRows.values());
+    } else groups.push({ name: "名簿", rows: records });
     const workbook = XLSX.utils.book_new();
     const usedNames = new Set();
     groups.forEach(({ name, rows }) => {
       if (!rows.length) return;
       const safeName = (base, index = 1) => {
-        const candidate = `${base.slice(0, 31 - (index > 1 ? String(index).length + 1 : 0))}${index > 1 ? `_${index}` : ""}`;
+        const normalizedBase = String(base).replace(/[\u0000-\u001f:\/?*\[\]]/g, "_").replace(/^'+|'+$/g, "").trim() || "名簿";
+        const candidate = `${normalizedBase.slice(0, 31 - (index > 1 ? String(index).length + 1 : 0))}${index > 1 ? `_${index}` : ""}`;
         if (!usedNames.has(candidate)) { usedNames.add(candidate); return candidate; }
-        return safeName(base, index + 1);
+        return safeName(normalizedBase, index + 1);
       };
       const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows.map((record) => [...fields.map((field) => String(record[field] ?? "")), ...attendanceFields.map(() => "")])], { cellDates: false });
       sheet["!cols"] = headers.map(() => ({ wch: 16 }));
@@ -491,7 +542,7 @@
   $("confirmImport").addEventListener("click", () => commitImport().catch((error) => setMessage("importStatus", error.message || "Firebaseへの保存に失敗しました。アクセスルールと接続を確認してください。", true)));
   $("cancelImport").addEventListener("click", () => { state.staged = null; $("importOptions").classList.add("hidden"); $("importFile").value = ""; });
   $("query").addEventListener("input", () => { renderResults(); renderExportGroupValues(); resetLockTimer(); });
-  $("exportGroupField").addEventListener("change", renderExportGroupValues);
+  $("exportGroupFields").addEventListener("change", renderExportGroupValues);
   $("exportButton").addEventListener("click", exportAttendanceWorkbook);
   $("viewMode").addEventListener("change", renderResults);
   $("viewMode").addEventListener("change", () => document.body.classList.toggle("wide-table-view", $("viewMode").value === "table"));

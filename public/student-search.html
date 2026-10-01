@@ -54,9 +54,10 @@
         <label class="view-mode-label">表示形式<select id="viewMode"><option value="cards">現在の形式</option><option value="table">表形式</option></select></label>
         <div id="filters" class="filter-grid"></div>
         <div class="export-group-controls">
-          <label>シート分けする項目<select id="exportGroupField"><option value="">現在の絞り込みを1シートで出力</option></select></label>
-          <label>出力する値（複数選択可）<select id="exportGroupValues" multiple size="4" disabled></select></label>
+          <label>シート分けする条件（複数選択可）<select id="exportGroupFields" multiple size="5"></select></label>
+          <label id="exportGroupValuesLabel">出力する値（複数選択可）<select id="exportGroupValues" multiple size="4" disabled></select></label>
         </div>
+        <p id="exportGroupHint" class="muted">条件を選ばない場合は1シート、複数条件を選ぶと値の組み合わせごとにシートを作成します。</p>
         <p id="resultCount" class="result-count"></p>
         <div id="results" class="results" aria-live="polite"></div>
       </section>
