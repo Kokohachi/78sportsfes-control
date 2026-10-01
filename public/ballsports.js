@@ -299,14 +299,14 @@ function migrateInitialBaseballSchedule(schedule) {
         format: "tournament",
         teamA: "A+B組",
         teamB: "C+D組",
-        scoreA: null,
-        scoreB: null,
-        status: "BEFORE",
-        offsetMins: 0,
+        scoreA: first.scoreA ?? null,
+        scoreB: first.scoreB ?? null,
+        status: first.status ?? "BEFORE",
+        offsetMins: first.offsetMins ?? 0,
         pointRule: [150, 150, 100, 100],
         baseballCombined: true
     };
-    ["endOffsetMins", "rankOrder", "rankByTeam", "rankPointsByTeam", "cardResults", "cardScores", "cardRaceTimes"].forEach((key) => delete combined[key]);
+    ["rankOrder", "rankByTeam", "rankPointsByTeam", "cardResults", "cardScores", "cardRaceTimes"].forEach((key) => delete combined[key]);
     const migrated = schedule.filter((match) => match !== oldSecond).map((match) => match === first ? combined : match);
     return { schedule: migrated, changed: true };
 }
