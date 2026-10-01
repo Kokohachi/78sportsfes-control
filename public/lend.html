@@ -127,6 +127,37 @@
     <div id="categoryTables" class="space-y-4"></div>
   </section>
 
+  <dialog id="itemActionDialog" class="w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-black/40">
+    <form id="itemActionForm" class="space-y-4 p-5">
+      <div>
+        <h2 id="itemActionTitle" class="text-lg font-semibold"></h2>
+        <p id="itemActionDescription" class="mt-1 text-sm text-gray-500"></p>
+      </div>
+      <div id="itemLendFields" class="space-y-3">
+        <label class="block text-sm font-medium">利用者名
+          <select id="itemActionUser" class="mt-1 w-full rounded-lg border px-3 py-2.5" required></select>
+        </label>
+        <label class="block text-sm font-medium">配置/行き先
+          <select id="itemActionPlace" class="mt-1 w-full rounded-lg border px-3 py-2.5" required></select>
+        </label>
+      </div>
+      <label id="itemReturnFields" class="hidden text-sm font-medium">返却時の電池残量
+        <select id="itemActionBattery" class="mt-1 w-full rounded-lg border px-3 py-2.5">
+          <option value="full">🔋 十分</option>
+          <option value="medium">🔌 中</option>
+          <option value="low">⚠️ 少ない</option>
+        </select>
+      </label>
+      <label class="block text-sm font-medium"><span id="itemActionNoteLabel">備考（任意）</span>
+        <textarea id="itemActionNote" rows="3" class="mt-1 w-full rounded-lg border px-3 py-2.5"></textarea>
+      </label>
+      <div class="flex gap-2">
+        <button type="button" id="cancelItemAction" class="flex-1 rounded-lg border px-4 py-2.5">キャンセル</button>
+        <button type="submit" id="submitItemAction" class="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white">保存</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- ===== 履歴タブ ===== -->
   <section id="history" class="tab-content">
     <h2 class="text-lg font-semibold mb-3">📜 操作履歴</h2>
@@ -225,6 +256,7 @@
     let categories = [];
     let users = [];
     let placeOptions = [];
+    let activeItemAction = null;
 
     // ===== ユーティリティ =====
     function nowTime() {
@@ -245,6 +277,9 @@
     function setSync(online, text) {
       document.getElementById('syncDot').className = `sync-dot ${online ? 'sync-online' : 'sync-offline'}`;
       document.getElementById('syncText').textContent = text || (online ? '✅ オンライン' : '❌ オフライン');
+    }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
     }
 
     // ===== Firebase初期化 =====
@@ -357,6 +392,26 @@
         timestamp: new Date(), time
       });
       return true;
+    }
+    async function lendSpecificItem(deviceId, user, place, note) {
+      if (!db) throw new Error('未接続です');
+      const item = items.find(i => i.id === deviceId);
+      if (!item || item.status !== 'ok') throw new Error('この品番は貸出できません。最新の一覧を確認してください。');
+      const time = nowTime();
+      await db.collection('equipment').doc(deviceId).update({
+        status: 'lend', user, place, noteLend: note,
+        lendTime: time, lendTimestamp: new Date()
+      });
+      await db.collection('history').add({
+        type: '貸出', category: item.category, count: 1, user, place, note, ids: [deviceId],
+        timestamp: new Date(), time
+      });
+    }
+    async function updateLendNote(deviceId, note) {
+      if (!db) throw new Error('未接続です');
+      const item = items.find(i => i.id === deviceId);
+      if (!item || item.status !== 'lend') throw new Error('貸出中の機器が見つかりません。最新の一覧を確認してください。');
+      await db.collection('equipment').doc(deviceId).update({ noteLend: note });
     }
 
     // ===== 機器削除（完全削除）=====
@@ -473,8 +528,8 @@
       }
       container.innerHTML = list.map(i => `
         <label class="flex items-center gap-2 rounded-lg border-b border-gray-100 py-2">
-          <input type="checkbox" name="returnId" value="${i.id}" class="rounded w-5 h-5 flex-shrink-0">
-          <div class="min-w-0"><div class="font-medium text-sm">${i.id}</div><div class="text-xs text-gray-500">${i.user || '利用者不明'}</div></div>
+          <input type="checkbox" name="returnId" value="${escapeHtml(i.id)}" class="rounded w-5 h-5 flex-shrink-0">
+          <div class="min-w-0"><div class="font-medium text-sm">${escapeHtml(i.category || '備品')} / ${escapeHtml(i.id)}</div><div class="text-xs text-gray-500">${escapeHtml(i.user || '利用者不明')}</div></div>
           <div class="ml-auto text-xs text-gray-400 flex-shrink-0">${i.lendTime || ''}</div>
         </label>`).join('');
       updateReturnCount();
@@ -496,7 +551,7 @@
         const ok = list.filter(i => i.status === 'ok').length;
         cont.innerHTML += `
           <div class="bg-white rounded-lg shadow overflow-hidden mb-4">
-            <div class="p-3 bg-gray-50 font-medium text-sm">${cat} (貸出可: ${ok} / 全${list.length})</div>
+            <div class="p-3 bg-gray-50 font-medium text-sm">${escapeHtml(cat)} (貸出可: ${ok} / 全${list.length})</div>
             <div class="table-wrap">
               <table class="text-sm w-full">
                 <thead class="bg-gray-50">
@@ -507,18 +562,22 @@
                     <th class="p-2 text-left whitespace-nowrap">場所</th>
                     <th class="p-2 text-left whitespace-nowrap">貸出日時</th>
                     <th class="p-2 text-left whitespace-nowrap">備考</th>
+                    <th class="p-2 text-left whitespace-nowrap">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${list.length ? list.map(i => `
                     <tr class="border-t">
-                      <td class="p-2 font-mono whitespace-nowrap">${i.id}</td>
+                      <td class="p-2 font-mono whitespace-nowrap">${escapeHtml(i.id)}</td>
                       <td class="p-2 whitespace-nowrap"><span class="px-2 py-0.5 rounded text-xs ${i.status==='lend'?'bg-red-100 text-red-700':'bg-green-100 text-green-700'}">${i.status==='lend'?'貸出中':'貸出可'}</span></td>
-                      <td class="p-2 whitespace-nowrap">${i.user || '-'}</td>
-                      <td class="p-2 whitespace-nowrap">${i.place || '-'}</td>
-                      <td class="p-2 text-xs text-gray-500 whitespace-nowrap">${i.lendTime || '-'}</td>
-                      <td class="p-2 text-xs text-gray-500 max-w-[120px] truncate">${i.noteLend || i.noteReturn || '-'}</td>
-                    </tr>`).join('') : '<tr><td colspan="6" class="p-3 text-gray-400 text-center">データなし</td></tr>'}
+                      <td class="p-2 whitespace-nowrap">${escapeHtml(i.user || '-')}</td>
+                      <td class="p-2 whitespace-nowrap">${escapeHtml(i.place || '-')}</td>
+                      <td class="p-2 text-xs text-gray-500 whitespace-nowrap">${escapeHtml(i.lendTime || '-')}</td>
+                      <td class="p-2 text-xs text-gray-500 max-w-[160px]">${escapeHtml(i.noteLend || i.noteReturn || '-')}</td>
+                      <td class="p-2 whitespace-nowrap"><div class="flex gap-1.5">${i.status === 'ok'
+                        ? `<button type="button" data-item-action="lend" data-item-id="${escapeHtml(i.id)}" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white">貸出</button>`
+                        : `<button type="button" data-item-action="return" data-item-id="${escapeHtml(i.id)}" class="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white">返却</button><button type="button" data-item-action="note" data-item-id="${escapeHtml(i.id)}" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium">備考</button>`}</div></td>
+                    </tr>`).join('') : '<tr><td colspan="7" class="p-3 text-gray-400 text-center">データなし</td></tr>'}
                 </tbody>
               </table>
             </div>
@@ -670,6 +729,58 @@
       showPopup(`✅ ${ids.length}台 返却完了`);
       e.target.reset();
       renderReturnCheckList();
+    });
+    document.getElementById('cancelItemAction')?.addEventListener('click', () => document.getElementById('itemActionDialog')?.close());
+    document.getElementById('categoryTables')?.addEventListener('click', e => {
+      const button = e.target.closest('[data-item-action]');
+      if (!button) return;
+      const item = items.find(i => i.id === button.dataset.itemId);
+      const mode = button.dataset.itemAction;
+      if (!item || (mode === 'lend' && item.status !== 'ok') || (mode !== 'lend' && item.status !== 'lend')) return;
+      activeItemAction = { id: item.id, mode };
+      document.getElementById('itemActionTitle').textContent = mode === 'lend' ? '品番ごとに貸出' : mode === 'return' ? '品番ごとに返却' : '貸出中の備考を編集';
+      document.getElementById('itemActionDescription').textContent = `${item.category || '備品'} / ${item.id}`;
+      document.getElementById('itemActionNoteLabel').textContent = mode === 'return' ? '返却備考（任意）' : mode === 'lend' ? '備考（任意）' : '備考';
+      document.getElementById('itemActionNote').value = mode === 'return' ? '' : mode === 'lend' ? '' : item.noteLend || '';
+      document.getElementById('itemLendFields').classList.toggle('hidden', mode !== 'lend');
+      document.getElementById('itemReturnFields').classList.toggle('hidden', mode !== 'return');
+      const userSelect = document.getElementById('itemActionUser');
+      const placeSelect = document.getElementById('itemActionPlace');
+      userSelect.required = mode === 'lend';
+      placeSelect.required = mode === 'lend';
+      userSelect.innerHTML = '<option value="">選択してください</option>' + users.map(user => `<option value="${escapeHtml(user)}">${escapeHtml(user)}</option>`).join('');
+      placeSelect.innerHTML = '<option value="">選択してください</option>' + placeOptions.map(place => `<option value="${escapeHtml(place)}">${escapeHtml(place)}</option>`).join('');
+      document.getElementById('submitItemAction').textContent = mode === 'lend' ? 'この品番を貸し出す' : mode === 'return' ? 'この品番を返却する' : '備考を保存';
+      document.getElementById('submitItemAction').classList.toggle('bg-green-600', mode === 'return');
+      document.getElementById('submitItemAction').classList.toggle('bg-blue-600', mode !== 'return');
+      document.getElementById('itemActionDialog').showModal();
+    });
+    document.getElementById('itemActionForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!activeItemAction) return;
+      const { id, mode } = activeItemAction;
+      const note = document.getElementById('itemActionNote').value.trim();
+      try {
+        if (mode === 'lend') {
+          const user = document.getElementById('itemActionUser').value;
+          const place = document.getElementById('itemActionPlace').value;
+          if (!user || !place) return showPopup('利用者名と配置/行き先を選択してください', 'warning');
+          await lendSpecificItem(id, user, place, note);
+          showPopup(`✅ ${id} を貸し出しました`);
+        } else if (mode === 'return') {
+          const battery = document.getElementById('itemActionBattery').value;
+          await returnItemsBatch([id], battery, note);
+          showPopup(`✅ ${id} を返却しました`);
+        } else {
+          await updateLendNote(id, note);
+          showPopup(`✅ ${id} の備考を保存しました`);
+        }
+        document.getElementById('itemActionDialog').close();
+        activeItemAction = null;
+      } catch (err) {
+        console.error('品番ごとの操作に失敗:', err);
+        showPopup(`保存できませんでした: ${err.message}`, 'error');
+      }
     });
     document.getElementById('authBtn')?.addEventListener('click', () => {
       if (document.getElementById('passwordInput')?.value === PASSWORD) {
