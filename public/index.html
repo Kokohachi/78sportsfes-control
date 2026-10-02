@@ -9,7 +9,7 @@
   <meta property="og:title" content="78th Sports Festival Portal">
   <meta property="og:description" content="第78回体育祭進行管理システム｜備品貸出・進行スケジュール・生徒照会を一元管理">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://p16-flow-image-sign.ibyteimg.com/tos-mya-i-uo7y4d541q/a3ab12918aba45a2a2329845f6dcc9e9.jpg~tplv-0es2k971ck-image.image?rcl=202609240247184651974C1893822DA5C7&rk3s=8e244e95&rrcfp=935dee89&x-expires=1790794039&x-signature=CNjmqAzc0rP2t6PzpuA9Xa2Qioc%3D">
+  <meta property="og:image" content="/logo.svg">
   <meta name="twitter:card" content="summary_large_image">
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide アイコン -->
@@ -29,7 +29,7 @@
 
     /* ===== 背景：オーロラ + グリッド + 星屑 ===== */
     body {
-      background: 
+      background:
         /* オーロラ光 */
         radial-gradient(ellipse 60% 40% at 20% 0%, rgba(59,130,246,0.08) 0%, transparent 60%),
         radial-gradient(ellipse 60% 40% at 80% 10%, rgba(16,185,129,0.06) 0%, transparent 60%),
@@ -47,7 +47,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-image: 
+      background-image:
         linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
       background-size: 50px 50px;
@@ -64,7 +64,7 @@
       left: -50%;
       width: 200%;
       height: 200%;
-      background: 
+      background:
         radial-gradient(circle at 30% 30%, rgba(59,130,246,0.03) 0%, transparent 40%),
         radial-gradient(circle at 70% 70%, rgba(16,185,129,0.025) 0%, transparent 40%);
       animation: aurora-shift 20s ease-in-out infinite alternate;
@@ -130,22 +130,50 @@
 
     /* ===== ロゴスタイル ===== */
     .logo-main {
-      filter: 
-        drop-shadow(0 0 30px rgba(255,255,255,0.15))
-        drop-shadow(0 0 60px rgba(255,255,255,0.05));
+      filter:
+        invert(1)
+        drop-shadow(0 0 18px rgba(103,232,249,0.42))
+        drop-shadow(0 0 42px rgba(255,255,255,0.16));
       animation: logo-float 5s ease-in-out infinite;
     }
     .logo-small {
-      filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
+      filter: invert(1) drop-shadow(0 0 8px rgba(103,232,249,0.3));
+    }
+    .event-day-burst {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .event-day-burst::before,
+    .event-day-burst::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 150%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201,178,126,0.7), transparent);
+      animation: event-sweep 4s ease-in-out infinite;
+    }
+    .event-day-burst::after { transform: rotate(90deg); animation-delay: 1.5s; }
+    @keyframes event-sweep {
+      0%, 100% { opacity: 0; transform: translate(-50%, -50%) scaleX(0.2) rotate(0deg); }
+      35%, 65% { opacity: 1; transform: translate(-50%, -50%) scaleX(1) rotate(12deg); }
+    }
+    .event-title-panel { animation: event-reveal 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+    @keyframes event-reveal {
+      from { opacity: 0; transform: scale(0.92) translateY(18px); filter: blur(8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
     }
 
     /* ===== カウントダウンカード ===== */
     .countdown-card {
-      background: 
+      background:
         linear-gradient(145deg, rgba(32,32,32,0.85), rgba(12,12,12,0.95));
       border: 1px solid rgba(255,255,255,0.1);
       backdrop-filter: blur(30px);
-      box-shadow: 
+      box-shadow:
         0 30px 100px rgba(0,0,0,0.85),
         0 0 150px rgba(255,255,255,0.02),
         inset 0 1px 0 rgba(255,255,255,0.08),
@@ -211,17 +239,55 @@
       right: 16px;
       width: 32px;
       height: 32px;
-      background: url('https://p16-flow-image-sign.ibyteimg.com/tos-mya-i-uo7y4d541q/a3ab12918aba45a2a2329845f6dcc9e9.jpg~tplv-0es2k971ck-image.image?rcl=202609240247184651974C1893822DA5C7&rk3s=8e244e95&rrcfp=935dee89&x-expires=1790794039&x-signature=CNjmqAzc0rP2t6PzpuA9Xa2Qioc%3D') center/contain no-repeat;
+      background: url('logo.svg') center/contain no-repeat;
       opacity: 0.15;
       pointer-events: none;
+    }
+    .countdown-progress {
+      height: 3px;
+      margin: 2.25rem auto 0;
+      max-width: 34rem;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.14);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+    }
+    .countdown-progress::before {
+      content: '';
+      display: block;
+      width: var(--countdown-progress, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--portal-blue), var(--portal-cyan), var(--portal-lime));
+      box-shadow: 0 0 14px rgba(103,232,249,0.7);
+      transition: width 0.5s linear;
+    }
+    .live-caption {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: rgba(165,243,252,0.72);
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .live-caption::before {
+      content: '';
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 50%;
+      background: var(--portal-cyan);
+      box-shadow: 0 0 10px var(--portal-cyan);
+      animation: pulse-soft 1.2s ease-in-out infinite;
     }
 
     /* ===== タイムブロック ===== */
     .time-block {
-      background: 
+      background:
         linear-gradient(180deg, rgba(48,48,48,0.9), rgba(18,18,18,0.95));
       border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 
+      box-shadow:
         inset 0 2px 8px rgba(0,0,0,0.75),
         0 12px 32px rgba(0,0,0,0.55),
         0 0 0 1px rgba(255,255,255,0.02),
@@ -232,7 +298,7 @@
     }
     .time-block:hover {
       transform: translateY(-4px) scale(1.02);
-      box-shadow: 
+      box-shadow:
         inset 0 2px 8px rgba(0,0,0,0.75),
         0 20px 45px rgba(0,0,0,0.7),
         0 0 70px rgba(255,255,255,0.06);
@@ -258,10 +324,10 @@
       pointer-events: none;
     }
     .ms-block {
-      background: 
+      background:
         linear-gradient(180deg, rgba(55,55,55,0.95), rgba(22,22,22,0.98));
       border: 1px solid rgba(255,255,255,0.18);
-      box-shadow: 
+      box-shadow:
         inset 0 2px 8px rgba(0,0,0,0.7),
         0 12px 32px rgba(0,0,0,0.55),
         0 0 50px rgba(255,255,255,0.05);
@@ -272,7 +338,7 @@
 
     /* ===== 機能カード ===== */
     .func-card {
-      background: 
+      background:
         linear-gradient(145deg, rgba(32,32,32,0.8), rgba(15,15,15,0.95));
       border: 1px solid rgba(255,255,255,0.1);
       backdrop-filter: blur(15px);
@@ -317,28 +383,28 @@
     .func-card:active {
       transform: translateY(-8px) scale(1.02);
       border-color: rgba(255,255,255,0.22);
-      box-shadow: 
+      box-shadow:
         0 30px 60px rgba(0,0,0,0.6),
         0 0 0 1px rgba(255,255,255,0.05),
         0 0 80px rgba(255,255,255,0.04);
     }
     .func-card-blue:hover,
     .func-card-blue:active {
-      box-shadow: 
+      box-shadow:
         0 30px 60px rgba(0,0,0,0.6),
         0 0 0 1px rgba(59,130,246,0.12),
         0 0 70px rgba(59,130,246,0.08);
     }
     .func-card-emerald:hover,
     .func-card-emerald:active {
-      box-shadow: 
+      box-shadow:
         0 30px 60px rgba(0,0,0,0.6),
         0 0 0 1px rgba(16,185,129,0.12),
         0 0 70px rgba(16,185,129,0.08);
     }
     .func-card-purple:hover,
     .func-card-purple:active {
-      box-shadow: 
+      box-shadow:
         0 30px 60px rgba(0,0,0,0.6),
         0 0 0 1px rgba(168,85,247,0.12),
         0 0 70px rgba(168,85,247,0.08);
@@ -379,7 +445,7 @@
       animation: gradient-shift 10s ease infinite;
     }
     .glow-text {
-      text-shadow: 
+      text-shadow:
         0 0 50px rgba(255,255,255,0.18),
         0 0 100px rgba(255,255,255,0.08);
     }
@@ -658,6 +724,21 @@
       font-variant-numeric: tabular-nums;
       text-shadow: 0 0 26px rgba(103,232,249,0.15);
     }
+    #countdown .time-block .font-mono-num {
+      animation: number-breathe 2.8s ease-in-out infinite;
+    }
+    #countdown .ms-block .font-mono-num {
+      color: var(--portal-cyan);
+      animation: milliseconds-glow 0.8s ease-in-out infinite;
+    }
+    @keyframes number-breathe {
+      0%, 100% { text-shadow: 0 0 26px rgba(103,232,249,0.12); }
+      50% { text-shadow: 0 0 34px rgba(103,232,249,0.3); }
+    }
+    @keyframes milliseconds-glow {
+      0%, 100% { opacity: 0.72; }
+      50% { opacity: 1; }
+    }
     .func-card {
       min-height: 258px;
       display: flex;
@@ -724,13 +805,13 @@
   <!-- ヘッダー -->
   <header class="text-center mb-16 fade-in-up relative z-10">
     <p class="text-gray-500 text-[10px] md:text-xs tracking-[0.45em] uppercase mb-8">78th Annual Sports Festival</p>
-    
+
     <!-- メインロゴ -->
     <div class="flex items-center justify-center mb-8">
       <div class="relative">
-        <img 
-          src="https://p16-flow-image-sign.ibyteimg.com/tos-mya-i-uo7y4d541q/a3ab12918aba45a2a2329845f6dcc9e9.jpg~tplv-0es2k971ck-image.image?rcl=202609240247184651974C1893822DA5C7&rk3s=8e244e95&rrcfp=935dee89&x-expires=1790794039&x-signature=CNjmqAzc0rP2t6PzpuA9Xa2Qioc%3D" 
-          alt="78th Logo" 
+        <img
+          src="logo.svg"
+          alt="78th Logo"
           class="logo-main w-24 h-24 md:w-32 md:h-32 lg:w-40 lg:h-40"
         >
         <!-- ロゴの背後の光 -->
@@ -747,20 +828,22 @@
 
   <!-- カウントダウン -->
   <div class="countdown-card rounded-3xl p-8 md:p-12 lg:p-14 mb-16 text-center fade-in-up delay-1 relative z-10">
-    <div class="flex items-center justify-center gap-2.5 mb-10">
+    <div class="flex items-center justify-center gap-2.5 mb-4">
       <div class="w-2 h-2 rounded-full bg-green-500 pulse-dot status-dot"></div>
       <p class="text-gray-400 text-[10px] md:text-xs tracking-[0.3em] uppercase">団体競技日まで</p>
     </div>
-    
+    <div class="live-caption mb-9">Live countdown · JST</div>
+
     <div id="countdown" class="flex justify-center gap-1.5 md:gap-3 lg:gap-5 flex-wrap items-end" role="timer" aria-live="off" aria-label="体育祭までのカウントダウン">
       <!-- 動的に挿入 -->
     </div>
-    
+    <div class="countdown-progress" aria-hidden="true"></div>
+
     <div class="flex items-center justify-center gap-4 mt-12">
       <div class="divider-thin flex-1 max-w-[120px]"></div>
       <div class="flex items-center gap-2.5">
         <i data-lucide="calendar" class="w-3.5 h-3.5 text-gray-500"></i>
-        <p class="text-gray-500 text-[10px] md:text-xs tracking-[0.3em] uppercase">2026.10.02 07:00</p>
+        <p class="text-gray-500 text-[10px] md:text-xs tracking-[0.3em] uppercase">2026.10.02 18:34 JST</p>
       </div>
       <div class="divider-thin flex-1 max-w-[120px]"></div>
     </div>
@@ -817,9 +900,9 @@
   <!-- フッター -->
   <footer class="mt-24 text-center fade-in-up delay-3 relative z-10 pb-8">
     <div class="flex items-center justify-center gap-3 mb-6 opacity-40">
-      <img 
-        src="https://p16-flow-image-sign.ibyteimg.com/tos-mya-i-uo7y4d541q/a3ab12918aba45a2a2329845f6dcc9e9.jpg~tplv-0es2k971ck-image.image?rcl=202609240247184651974C1893822DA5C7&rk3s=8e244e95&rrcfp=935dee89&x-expires=1790794039&x-signature=CNjmqAzc0rP2t6PzpuA9Xa2Qioc%3D" 
-        alt="78th Logo" 
+      <img
+        src="logo.svg"
+        alt="78th Logo"
         class="logo-small w-8 h-8"
       >
     </div>
@@ -857,8 +940,8 @@
       mouseGlow.style.display = 'none';
     }
 
-    const TARGET = new Date('2026-10-02T07:00:00');
-    
+    const TARGET = new Date('2026-10-02T18:34:00+09:00');
+
     function pad(n, d = 2) {
       return String(n).padStart(d, '0');
     }
@@ -867,15 +950,17 @@
       const now = new Date();
       const diff = TARGET - now;
       const container = document.getElementById('countdown');
+      const progress = document.querySelector('.countdown-progress');
 
       if (diff <= 0) {
         if (container.dataset.state !== 'event-day') {
           container.parentElement.classList.add('event-complete');
           container.innerHTML = `
+            <div class="event-day-burst" aria-hidden="true"></div>
             <div class="event-title-panel w-full">
               <p class="event-title-overline">Musashi · October 02, 2026</p>
-              <h2 class="event-title-jp">団体競技日</h2>
-              <p class="event-title-en">Team Sports Day</p>
+              <h2 class="event-title-jp">第七十八回<br>体育祭</h2>
+              <p class="event-title-en">団体競技日 · Team Sports Day</p>
               <div class="event-title-mark" aria-hidden="true"></div>
             </div>
           `;
@@ -908,7 +993,7 @@
           </div>
           <div class="ms-block rounded-2xl px-4 py-5 md:px-6 md:py-8 lg:px-8 lg:py-9 min-w-[65px] md:min-w-[85px] lg:min-w-[100px] float-num" style="animation-delay: 2s">
             <div id="countdownCentiseconds" class="font-mono-num text-2xl md:text-4xl lg:text-6xl font-extrabold text-white leading-none tracking-tight" style="text-shadow: 0 0 20px rgba(255,255,255,0.2);"></div>
-            <div class="text-[9px] md:text-[10px] text-gray-400 mt-4 tracking-[0.3em] uppercase font-semibold">MS</div>
+            <div class="text-[9px] md:text-[10px] text-gray-400 mt-4 tracking-[0.3em] uppercase font-semibold">MSEC</div>
           </div>
         `;
         container.dataset.state = 'countdown';
@@ -918,16 +1003,19 @@
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / (1000 * 60)) % 60);
       const secs = Math.floor((diff / 1000) % 60);
-      const ms = Math.floor((diff % 1000) / 10);
+      const ms = diff % 1000;
+      const totalWindow = 24 * 60 * 60 * 1000;
+      const progressPercent = Math.max(0, Math.min(100, (1 - diff / totalWindow) * 100));
+      progress.style.setProperty('--countdown-progress', `${progressPercent}%`);
       document.getElementById('countdownDays').textContent = String(days);
       document.getElementById('countdownHours').textContent = pad(hours);
       document.getElementById('countdownMinutes').textContent = pad(mins);
       document.getElementById('countdownSeconds').textContent = pad(secs);
-      document.getElementById('countdownCentiseconds').textContent = pad(ms);
+      document.getElementById('countdownCentiseconds').textContent = pad(ms, 3);
     }
 
     updateCountdown();
-    setInterval(updateCountdown, 100);
+    setInterval(updateCountdown, 33);
   </script>
 </body>
 </html>
